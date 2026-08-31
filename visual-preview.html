@@ -1,0 +1,481 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>BreatheBlock alert and breathing preview</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --page: #171a18;
+      --screen: #050706;
+      --sage: #b8ccbc;
+      --sage-soft: #91aa98;
+      --text: #e7ede7;
+      --muted: #9eaaa0;
+      --control: #282d29;
+      --control-hover: #343a35;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      min-height: 100vh;
+      margin: 0;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      background: var(--page);
+      color: var(--text);
+      font-family: ui-rounded, "Avenir Next", system-ui, sans-serif;
+    }
+
+    .preview {
+      width: min(100%, 560px);
+      display: grid;
+      justify-items: center;
+      gap: 22px;
+    }
+
+    .display {
+      position: relative;
+      width: min(82vw, 466px);
+      aspect-ratio: 1;
+      overflow: hidden;
+      border-radius: 50%;
+      background: var(--screen);
+      box-shadow: 0 28px 90px #0009, inset 0 0 0 1px #ffffff0a;
+    }
+
+    .display svg {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    .wash {
+      fill: color-mix(in srgb, var(--sage-soft) 10%, transparent);
+    }
+
+    .edge-glow,
+    .edge-pulse {
+      fill: none;
+      transform-origin: center;
+      opacity: 0;
+    }
+
+    .edge-glow {
+      stroke: var(--sage-soft);
+      stroke-width: 12;
+      filter: blur(8px);
+    }
+
+    .edge-pulse {
+      stroke: var(--sage);
+      stroke-width: 1.2;
+    }
+
+    .edge-glow.is-active {
+      animation: edge-glow 2.4s ease-in-out infinite;
+    }
+
+    .edge-pulse.is-active {
+      animation: edge-pulse 2.4s ease-in-out infinite;
+    }
+
+    .echo,
+    .contour {
+      fill: none;
+      vector-effect: non-scaling-stroke;
+    }
+
+    .echo {
+      stroke: color-mix(in srgb, var(--sage-soft) 38%, transparent);
+      stroke-width: 1;
+    }
+
+    .contour {
+      stroke: color-mix(in srgb, var(--sage) 84%, transparent);
+      stroke-width: 1.5;
+    }
+
+    .breath-word,
+    .alert-line,
+    .alert-action {
+      text-anchor: middle;
+      font-family: ui-rounded, "Avenir Next", system-ui, sans-serif;
+    }
+
+    .breath-word {
+      fill: color-mix(in srgb, var(--text) 82%, transparent);
+      font-size: 15px;
+      font-weight: 500;
+      letter-spacing: .18em;
+      opacity: 0;
+    }
+
+    .alert-copy,
+    .invitation-copy {
+      opacity: 0;
+    }
+
+    .alert-line {
+      fill: color-mix(in srgb, var(--text) 94%, transparent);
+      font-size: 16px;
+      font-weight: 500;
+      letter-spacing: .075em;
+    }
+
+    .alert-action {
+      fill: color-mix(in srgb, var(--text) 60%, transparent);
+      font-size: 12px;
+      letter-spacing: .13em;
+    }
+
+    @keyframes edge-glow {
+      0%, 100% { opacity: .025; transform: scale(.992); }
+      50% { opacity: .19; transform: scale(1); }
+    }
+
+    @keyframes edge-pulse {
+      0%, 100% { opacity: .08; transform: scale(.992); }
+      50% { opacity: .48; transform: scale(1); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .edge-glow.is-active { animation: none; opacity: .1; }
+      .edge-pulse.is-active { animation: none; opacity: .28; }
+    }
+
+    .controls {
+      width: 100%;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: end;
+      justify-content: center;
+      gap: 10px;
+    }
+
+    .field {
+      display: grid;
+      gap: 6px;
+      color: var(--muted);
+      font-size: 12px;
+      letter-spacing: .05em;
+    }
+
+    button,
+    select {
+      min-height: 42px;
+      border: 1px solid #ffffff14;
+      border-radius: 12px;
+      background: var(--control);
+      color: var(--text);
+      padding: 0 14px;
+      font: inherit;
+    }
+
+    button {
+      cursor: pointer;
+      font-weight: 500;
+    }
+
+    button:first-of-type {
+      background: var(--text);
+      color: var(--screen);
+    }
+
+    button:hover,
+    select:hover { background: var(--control-hover); }
+    button:first-of-type:hover { background: var(--sage); }
+
+    button:focus-visible,
+    select:focus-visible {
+      outline: 2px solid var(--sage);
+      outline-offset: 3px;
+    }
+
+    .status {
+      color: var(--muted);
+      font-size: 13px;
+      letter-spacing: .08em;
+    }
+
+    @media (max-width: 520px) {
+      .controls { align-items: stretch; }
+      .field { width: 100%; }
+      button, select { flex: 1; }
+    }
+  </style>
+</head>
+<body>
+  <main class="preview">
+    <div class="display">
+      <svg viewBox="0 0 320 320" role="img" aria-labelledby="preview-title preview-desc">
+        <title id="preview-title">BreatheBlock alert and flexible breathing contour</title>
+        <desc id="preview-desc">A calm alert appears, then a living contour expands during inhale and settles during exhale.</desc>
+        <circle class="edge-glow" id="edge-glow" cx="160" cy="160" r="151"></circle>
+        <circle class="edge-pulse" id="edge-pulse" cx="160" cy="160" r="151"></circle>
+        <path class="wash" id="wash"></path>
+        <path class="echo" id="echo"></path>
+        <path class="contour" id="contour"></path>
+        <text class="breath-word" id="breath-word" x="160" y="165">inhale</text>
+        <g class="alert-copy" id="alert-copy">
+          <text class="alert-line" id="alert-line-one" x="160" y="151">your breathing</text>
+          <text class="alert-line" id="alert-line-two" x="160" y="176">has shifted</text>
+        </g>
+        <g class="invitation-copy" id="invitation-copy">
+          <text class="alert-line" x="160" y="165">breathe with me</text>
+        </g>
+      </svg>
+    </div>
+
+    <div class="controls">
+      <button type="button" id="preview-alert">Preview alert</button>
+      <button type="button" id="pause">Pause</button>
+      <label class="field" for="alert-choice">
+        Alert wording
+        <select id="alert-choice">
+          <option value="shifted">Your breathing has shifted</option>
+          <option value="activated">Your body seems more activated</option>
+          <option value="pause">A pause may help</option>
+        </select>
+      </label>
+      <label class="field" for="motion-mode">
+        Breathing motion
+        <select id="motion-mode">
+          <option value="live" selected>Follow live breath</option>
+          <option value="guided">Guided 4 in · 6 out</option>
+        </select>
+      </label>
+    </div>
+
+    <div class="status" id="status" aria-live="polite">gentle prompt</div>
+  </main>
+
+  <script>
+    const contour = document.querySelector('#contour');
+    const echo = document.querySelector('#echo');
+    const wash = document.querySelector('#wash');
+    const breathWord = document.querySelector('#breath-word');
+    const alertCopy = document.querySelector('#alert-copy');
+    const invitationCopy = document.querySelector('#invitation-copy');
+    const edgeGlow = document.querySelector('#edge-glow');
+    const edgePulse = document.querySelector('#edge-pulse');
+    const alertLineOne = document.querySelector('#alert-line-one');
+    const alertLineTwo = document.querySelector('#alert-line-two');
+    const alertChoice = document.querySelector('#alert-choice');
+    const motionMode = document.querySelector('#motion-mode');
+    const previewAlert = document.querySelector('#preview-alert');
+    const pauseButton = document.querySelector('#pause');
+    const status = document.querySelector('#status');
+
+    const messages = {
+      shifted: ['your breathing', 'has shifted'],
+      activated: ['your body seems', 'more activated'],
+      pause: ['a pause', 'may help']
+    };
+
+    let running = true;
+    let alertActive = true;
+    let alertStartedAt = performance.now();
+    let breathStartedAt = performance.now();
+    let pausedAt = 0;
+    let frameId = 0;
+    let currentWord = 'inhale';
+    let renderedPrimary = .22;
+    let renderedDelayed = .21;
+    let renderedSoft = .19;
+    let lastFrameAt = performance.now();
+
+    const ease = value => 0.5 - 0.5 * Math.cos(Math.PI * Math.max(0, Math.min(1, value)));
+
+    function breathAt(elapsed) {
+      const cycle = ((elapsed % 10000) + 10000) % 10000;
+      return cycle < 4000 ? ease(cycle / 4000) : ease(1 - (cycle - 4000) / 6000);
+    }
+
+    function liveBreathAt(elapsed) {
+      const angle = elapsed * Math.PI * 2 / 5200 + Math.sin(elapsed / 8700) * .24;
+      const value = .5 - .5 * Math.cos(angle);
+      const inhaling = Math.sin(angle) >= 0;
+      const phaseFade = ease(Math.min(1, Math.abs(Math.sin(angle)) / .32));
+      return { value, inhaling, phaseFade };
+    }
+
+    function envelope(elapsed, start, end, fade) {
+      if (elapsed < start || elapsed >= end) return 0;
+      const nearestEdge = Math.min(elapsed - start, end - elapsed);
+      return ease(Math.min(1, nearestEdge / fade));
+    }
+
+    function smoothClosedPath(points) {
+      const count = points.length;
+      let path = `M ${(points[0].x + points[1].x) / 2} ${(points[0].y + points[1].y) / 2}`;
+      for (let index = 1; index <= count; index += 1) {
+        const point = points[index % count];
+        const next = points[(index + 1) % count];
+        path += ` Q ${point.x} ${point.y} ${(point.x + next.x) / 2} ${(point.y + next.y) / 2}`;
+      }
+      return `${path} Z`;
+    }
+
+    function tissuePath(breath, phase, layer) {
+      const points = [];
+      const count = 28;
+      const centerY = 160;
+      const radiusX = 92 + breath * 35 + layer * 5;
+      const radiusY = 78 + breath * 29 + layer * 5;
+
+      for (let index = 0; index < count; index += 1) {
+        const angle = Math.PI * 2 * index / count;
+        const lowerHalf = (Math.sin(angle) + 1) / 2;
+        const sideFullness = .82 + lowerHalf * .2;
+        const motion =
+          Math.sin(angle * 2 + phase * .72 + layer) * .031 +
+          Math.sin(angle * 3 - phase * .38 - layer * .4) * .017 +
+          Math.sin(angle * 5 + phase * .2) * .006;
+        const lowerExpansion = breath * lowerHalf * .055;
+        const shape = 1 + motion + lowerExpansion;
+
+        points.push({
+          x: 160 + Math.cos(angle) * radiusX * sideFullness * shape,
+          y: centerY + Math.sin(angle) * radiusY * (1 + motion * .55)
+        });
+      }
+      return smoothClosedPath(points);
+    }
+
+    function setMessage() {
+      const message = messages[alertChoice.value];
+      alertLineOne.textContent = message[0];
+      alertLineTwo.textContent = message[1];
+    }
+
+    function startAlert() {
+      setMessage();
+      alertActive = true;
+      alertStartedAt = performance.now();
+      alertCopy.style.opacity = '0';
+      invitationCopy.style.opacity = '0';
+      breathWord.style.opacity = '0';
+      status.textContent = 'gentle prompt';
+      if (!running) {
+        running = true;
+        pauseButton.textContent = 'Pause';
+        frameId = requestAnimationFrame(draw);
+      }
+    }
+
+    function draw(now) {
+      const alertElapsed = now - alertStartedAt;
+      const frameSeconds = Math.min(.05, Math.max(0, (now - lastFrameAt) / 1000));
+      const contourBlend = 1 - Math.exp(-frameSeconds * 4.6);
+      lastFrameAt = now;
+
+      const observationOpacity = alertActive
+        ? envelope(alertElapsed, 0, 3200, 850)
+        : 0;
+      const invitationOpacity = alertActive
+        ? envelope(alertElapsed, 4100, 6300, 850)
+        : 0;
+      const edgeStrength = alertActive
+        ? envelope(alertElapsed, 0, 7200, 900)
+        : 0;
+      const edgeWave = .5 - .5 * Math.cos(Math.PI * 2 * alertElapsed / 2400);
+
+      alertCopy.style.opacity = observationOpacity.toFixed(3);
+      invitationCopy.style.opacity = invitationOpacity.toFixed(3);
+      edgeGlow.style.opacity = (edgeStrength * (.025 + edgeWave * .165)).toFixed(3);
+      edgePulse.style.opacity = (edgeStrength * (.08 + edgeWave * .4)).toFixed(3);
+      const edgeScale = .992 + edgeWave * .008;
+      edgeGlow.style.transform = `scale(${edgeScale})`;
+      edgePulse.style.transform = `scale(${edgeScale})`;
+
+      if (alertActive && alertElapsed < 3200) status.textContent = 'gentle prompt';
+      if (alertActive && alertElapsed >= 3200 && alertElapsed < 4100) status.textContent = 'quiet transition';
+      if (alertActive && alertElapsed >= 4100 && alertElapsed < 6300) status.textContent = 'invitation';
+      if (alertActive && alertElapsed >= 6300) status.textContent = 'settling into breath';
+
+      if (alertActive && alertElapsed >= 7200) {
+        alertActive = false;
+        breathStartedAt = now;
+      }
+
+      const elapsed = now - breathStartedAt;
+      const cycle = ((elapsed % 10000) + 10000) % 10000;
+      const guidedInhaling = cycle < 4000;
+      const liveReading = liveBreathAt(elapsed);
+      const followingLive = motionMode.value === 'live';
+      const inhaling = followingLive ? liveReading.inhaling : guidedInhaling;
+      const pulse = .22 + Math.sin(alertElapsed / 620) * .035;
+      const guidedPrimary = breathAt(elapsed);
+      const guidedDelayed = breathAt(elapsed - 380);
+      const guidedSoft = breathAt(elapsed - 620);
+      const liveDelayed = liveBreathAt(elapsed - 260).value;
+      const liveSoft = liveBreathAt(elapsed - 470).value;
+      const primaryTarget = alertActive ? pulse : (followingLive ? liveReading.value : guidedPrimary);
+      const delayedTarget = alertActive ? pulse * .94 : (followingLive ? liveDelayed : guidedDelayed);
+      const softTarget = alertActive ? pulse * .88 : (followingLive ? liveSoft : guidedSoft);
+      renderedPrimary += (primaryTarget - renderedPrimary) * contourBlend;
+      renderedDelayed += (delayedTarget - renderedDelayed) * contourBlend;
+      renderedSoft += (softTarget - renderedSoft) * contourBlend;
+      const phase = now / 1800;
+      contour.setAttribute('d', tissuePath(renderedPrimary, phase, 0));
+      echo.setAttribute('d', tissuePath(renderedDelayed, phase - .4, .45));
+      wash.setAttribute('d', tissuePath(renderedSoft, phase - .75, .9));
+
+      if (!alertActive) {
+        const nextWord = inhaling ? 'inhale' : 'exhale';
+        if (nextWord !== currentWord) {
+          currentWord = nextWord;
+          breathWord.textContent = currentWord;
+        }
+        const entryFade = ease(Math.min(1, elapsed / 850));
+        let phaseFade;
+        if (followingLive) {
+          phaseFade = liveReading.phaseFade;
+        } else {
+          const phaseElapsed = guidedInhaling ? cycle : cycle - 4000;
+          const phaseDuration = guidedInhaling ? 4000 : 6000;
+          phaseFade = ease(Math.min(1, Math.min(phaseElapsed, phaseDuration - phaseElapsed) / 700));
+        }
+        breathWord.style.opacity = (entryFade * phaseFade).toFixed(3);
+        status.textContent = followingLive
+          ? 'following live breathing · simulated in this preview'
+          : (inhaling ? '4 seconds in' : '6 seconds out');
+      } else {
+        breathWord.style.opacity = '0';
+      }
+
+      if (running) frameId = requestAnimationFrame(draw);
+    }
+
+    previewAlert.addEventListener('click', startAlert);
+    alertChoice.addEventListener('change', startAlert);
+    motionMode.addEventListener('change', () => {
+      breathStartedAt = performance.now();
+    });
+
+    pauseButton.addEventListener('click', () => {
+      if (running) {
+        running = false;
+        pausedAt = performance.now();
+        cancelAnimationFrame(frameId);
+        pauseButton.textContent = 'Play';
+      } else {
+        const now = performance.now();
+        const pausedFor = now - pausedAt;
+        alertStartedAt += pausedFor;
+        breathStartedAt += pausedFor;
+        running = true;
+        pauseButton.textContent = 'Pause';
+        frameId = requestAnimationFrame(draw);
+      }
+    });
+
+    startAlert();
+    frameId = requestAnimationFrame(draw);
+  </script>
+</body>
+</html>
