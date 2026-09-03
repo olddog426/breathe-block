@@ -1,61 +1,73 @@
-# Breathe Block firmware
+# Breathe Block
 
-A quiet first prototype for the Waveshare ESP32-S3-Touch-AMOLED-1.43 and
-Hi-Link HLK-LD6002 radar kit.
+A small desk object that sits quietly, notices when your breathing has shifted,
+and offers to breathe with you for a minute. Waveshare
+ESP32-S3-Touch-AMOLED-1.43 (466 × 466 round AMOLED) with a Hi-Link HLK-LD6002
+radar. No camera, no microphone, no numbers on screen, and no medical claims.
 
-The interface deliberately shows no health data during normal use. Its quiet
-ambient form follows the radar's live respiratory-phase signal. When a guided
-session begins, the form expands for four seconds, releases for six seconds,
-repeats five times, then fades to black. The main message stays in a protected
-quiet zone at the center while the contour moves around it; phase changes fade
-gently rather than switching abruptly. The radar logic describes sustained relative
-activation; it does not diagnose stress or provide medical monitoring.
+**[DESIGN.md](DESIGN.md) is the interface concept and state flow.** Read that
+first; this file is how to run it.
 
-The prompt sequence is deliberately unhurried:
+At rest the display is true black with a single dim ember. When the radar sees
+a sustained shift relative to your own seated baseline, a glow blooms at the
+rim, says *your breathing has shifted*, then *breathe with me*, then guides
+five four-second inhales and six-second exhales before dissolving back to
+black. Nothing on screen ever steps or cuts; a regression test asserts it.
 
-1. **your breathing has shifted** fades in, then out;
-2. a short empty pause;
-3. **breathe with me** fades in, then out;
-4. a second empty pause;
-5. the guided inhale/exhale instructions begin.
+## Seeing it, in order of how little you need
 
-A slow, low-contrast ring pulses around the outer edge during the first four
-steps. It is intended for peripheral vision and stops before breath guidance.
-Every opacity and size change uses an eased envelope. The contour carries its
-current size into the next stage and blends onto the new motion over 900 ms, so
-the experience remains one continuous flow with no visual reset between screens.
+### 1. In a browser, right now
 
-## Try the visual first
+Open `visual-preview.html`. It runs the same light field and the same state
+machine as the firmware, with buttons for every state and the three palettes.
+`make -C tools check-preview` fails if that port ever drifts from the firmware.
 
-1. Install Arduino IDE 2.
-2. In Boards Manager, install **esp32 by Espressif Systems 3.3.0 or newer**.
-3. In Library Manager, install **lvgl 9.2.2**.
-4. Open `BreatheBlock/BreatheBlock.ino`.
-5. Select **Waveshare ESP32-S3-Touch-AMOLED-1.43** as the board.
-6. Connect the Waveshare board by USB-C and press Upload.
+### 2. On a laptop, from the firmware's own code
 
-The current configuration uses simulated readings and automatically starts
-the visual after boot. Press the onboard **BOOT** button to start or stop a
-session manually.
-
-Open `visual-preview.html` to compare the interaction before uploading. It can
-replay the gentle alert and switch between simulated live-breath following and
-the guided 4-in/6-out rhythm.
-
-If the exact Waveshare board name is not visible, update the Espressif board
-package before using a generic ESP32-S3 profile. The board requires 16 MB
-flash and PSRAM enabled.
-
-## Connect the radar later
-
-After confirming the visual works, open `BreatheBlock/AppConfig.h` and change:
-
-```cpp
-constexpr bool kUseSimulatedRadar = false;
-constexpr bool kAutoStartVisualDemo = false;
+```sh
+make -C tools preview && mkdir -p out && tools/preview out
+python3 tools/contact_sheet.py out          # needs pillow
 ```
 
-Use the small UART connector on the Waveshare board:
+`tools/preview` renders `BreathField`/`BreathScene` — the real firmware
+sources — to PNG contact sheets of every moment in the flow.
+
+To go further and run the *whole device UI*, including LVGL, Montserrat and the
+dirty-rectangle logic:
+
+```sh
+git clone --depth 1 -b v9.2.2 https://github.com/lvgl/lvgl
+make -C tools host_ui LVGL_DIR=../lvgl     # builds LVGL once, ~2 min
+mkdir -p out && tools/host_ui out && python3 tools/contact_sheet.py out
+```
+
+The host framebuffer is only ever written by the flush callback, so anything
+wrong with invalidation shows up immediately as smearing.
+
+### 3. On the board, with no radar
+
+1. Arduino IDE 2, **esp32 by Espressif 3.3.0+**, **lvgl 9.2.2**.
+2. Open `BreatheBlock/BreatheBlock.ino`, select
+   **Waveshare ESP32-S3-Touch-AMOLED-1.43**, upload over USB-C.
+
+`AppConfig.h` ships in `DemoMode::Tour`, which loops the whole state flow with
+a simulated radar. `DemoMode::Manual` steps one scene per BOOT press instead.
+Either way a serial console is on 115200:
+
+```
+n  a noticed session          s  sleep       w  wake
+m  a session you started      b  hold the simulated body in activation
+x  dismiss                    t  toggle the looping tour
+r  return to quiet            p  next palette    f  frame timings    ?  help
+```
+
+`f` reports how long the light field takes to composite and how many pixels the
+average flush touches — worth checking after any change to the geometry.
+
+## Connecting the radar
+
+Set `kUseSimulatedRadar = false` and `kDemoMode = DemoMode::Off` in
+`AppConfig.h`, then wire the UART connector:
 
 | Radar test board | Waveshare display |
 |---|---|
@@ -63,31 +75,64 @@ Use the small UART connector on the Waveshare board:
 | RX0 | TXD / GPIO 43 |
 | GND | GND |
 
-Leave the connector's 3V3 wire disconnected. Power the radar test board and
-display separately by USB-C. **Do not rely on wire colors**; use the printed
-TX/RX/GND labels and cross TX to RX.
+Leave the connector's 3V3 wire disconnected and power both boards separately by
+USB-C. Use the printed TX/RX/GND labels, not the wire colours, and cross TX to
+RX. The firmware listens at the documented 1,382,400 baud and falls back to
+115,200 once if no valid packets arrive.
 
-The firmware first listens at the manufacturer's documented 1,382,400 baud
-and automatically tries 115,200 once if no valid packets arrive.
+Place the radar 40–100 cm from the centre of your chest and sit still for a
+minute or two. The detector builds a 90-second seated baseline, compares heart
+and breathing rates against *your own* baseline, requires a sustained change for
+75 seconds, and then stays quiet for ten minutes. Those thresholds are
+deliberately conservative and are worth tuning against a known-good reference
+during real desk use. It describes relative activation; it does not diagnose
+anything.
 
-## First live-data test
+## Tuning the object
 
-Place the radar 40–100 cm from the center of your chest, aimed directly at
-you. Sit still for at least a minute. Open Arduino's Serial Monitor at 115200
-baud to see the live readings and baseline while keeping the normal screen
-calm and number-free.
+Everything you are likely to want to change is in `BreatheBlock/AppConfig.h`:
 
-The firmware parses the radar's `0x0A13` respiratory-phase stream for the live
-ambient motion. If phase data is temporarily unavailable, it quietly falls
-back to a small ambient pulse rather than pretending to follow a breath.
+* **Voice** — the five strings, together in one block.
+* **Palette** — `kIvory` (warm centre, sage halo), `kMoonlight`, `kEmber`.
+* **Pacing** — inhale, exhale, cycle count.
+* **`kShowSessionProgress`** — the hairline arc that traces the rim during
+  guidance. Set it false for the purest version of the object.
 
-The initial detector:
+Geometry (how large the contour grows, how soft its edges are, how bright the
+resting ember is) lives in `SceneConfig` in `BreathScene.h`.
 
-- builds a 90-second seated baseline;
-- compares heart and breathing rates with your own baseline;
-- requires a sustained change for 75 seconds;
-- suppresses prompts for ten minutes after a session;
-- never labels the result as anxiety or medical stress.
+## Layout
 
-These thresholds are intentionally conservative and should be tuned only
-after comparing the radar with your Withings during real desk use.
+| | |
+|---|---|
+| `BreathField.{h,cpp}` | the light field and its RGB565 renderer — no LVGL, no Arduino |
+| `BreathScene.{h,cpp}` | the state machine and all of the easing — likewise |
+| `BreathingUI.{h,cpp}` | LVGL: text, the progress hairline, dirty rectangles |
+| `DemoDirector.{h,cpp}` | the tour, the button, the serial console |
+| `RadarSensor`, `LD6002`, `StressEngine` | radar, its packet parser, and the noticing logic |
+| `amoled.*`, `low_level_amoled.*`, `board_config.h` | Waveshare display driver (MIT, see `THIRD_PARTY_NOTICES.md`) |
+
+The first two have no dependencies on LVGL or Arduino, which is what lets the
+interface be unit-tested and rendered to images on a laptop.
+
+## Tests
+
+```sh
+make -C tests check
+```
+
+Beyond the radar-parser and detector tests, these assert the interface's own
+design rules: that the scanline renderer's integer radius matches an honest
+square root across the whole display, that nothing is drawn outside the bounding
+box the UI invalidates, that light adds to LVGL's output and saturates instead
+of wrapping, that no frame changes abruptly and no state change is visible as a
+step, that a word is only ever swapped while invisible, that the guidance words
+fade out after the third cycle, and that a session you turn down gets no
+closing remark.
+
+## A note on colour order
+
+`lv_conf.h` sets `LV_COLOR_16_SWAP`, which makes LVGL byte-swap its render
+buffer on the way into the flush callback. `BreathingUI` mirrors LVGL's own
+`#if` so the light field is packed the same way. If you ever change that
+setting, the glow follows automatically.

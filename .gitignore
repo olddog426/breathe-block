@@ -5,3 +5,16 @@ build/
 *.bin
 *.elf
 *.map
+
+# host build artefacts
+tools/preview
+tools/host_ui
+tools/preview_port_dump
+tools/host/liblvgl.a
+tools/host/obj/
+tools/host/srcs.txt
+tests/breath_field_test
+tests/breath_scene_test
+tests/stress_engine_test
+tests/radar_phase_test
+out/
