@@ -43,10 +43,16 @@ struct SceneConfig {
 
   // Geometry, in pixels on a 466 x 466 display.
   float displayCenter = 233.0f;
-  float restCoreRadius = 30.0f;
-  float restCoreLevel = 0.085f;
+  float restCoreRadius = 38.0f;
+  float restCoreLevel = 0.16f;
   float sleepCoreRadius = 24.0f;
   float sleepCoreLevel = 0.028f;
+  // A gentle warmth precursor to noticing while resting: 0 at your seated
+  // baseline, ramping toward this much warmth as the detector's own smoothed
+  // activation score approaches its real trigger threshold. Tied to that
+  // baseline-relative score rather than raw heart rate, so it only moves
+  // with a genuine sustained shift and can't flicker on ordinary noise.
+  float restActivationWarmth = 0.30f;
   float ringMinRadius = 100.0f;
   float ringMaxRadius = 184.0f;
   // The contour tightens as it fills: these are its released and extended
@@ -68,6 +74,11 @@ struct SceneInput {
   bool presence = true;
   bool livePhaseValid = false;
   float liveBreath = 0.0f;  // -1 fully exhaled .. +1 fully inhaled
+  // The detector's own smoothed, baseline-relative activation score: 0 at
+  // your seated baseline, 1 at the real "sustained shift" trigger threshold.
+  // Only used to warm the resting ember slightly — never raw vital signs, so
+  // it cannot flicker on an ordinary momentary blip.
+  float activationScore = 0.0f;
 };
 
 struct SceneOutput {

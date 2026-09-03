@@ -20,6 +20,8 @@ class BreathingUI {
   void blendInto(const lv_area_t* area, uint16_t* pixels);
 
   void setPresence(bool present) { presence_ = present; }
+  // The detector's smoothed activation score (see SceneInput::activationScore).
+  void setActivation(float score) { activationScore_ = score; }
   void setLiveBreathPhase(float phase, bool fresh, uint32_t nowMs);
   void setTestingVitals(float heartRate, float breathRate);
   void setPalette(const BreathPalette& palette);
@@ -63,6 +65,7 @@ class BreathingUI {
   int16_t shownArcValue_ = -1;
 
   float liveBreath_ = 0.0f;
+  float activationScore_ = 0.0f;
   float phaseCenter_ = 0.0f;
   float phaseAmplitude_ = 0.08f;
   uint32_t lastLivePhaseMs_ = 0;

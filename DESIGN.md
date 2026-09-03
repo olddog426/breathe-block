@@ -25,7 +25,7 @@ Three elements. Nothing else exists on screen.
 
 | Element | What it is | When it appears |
 |---|---|---|
-| **The ember** | A soft radial bloom at the centre. The object's presence. | Always, at 1.5–6 % brightness |
+| **The ember** | A soft radial bloom at the centre. The object's presence. | Always, at roughly 10–22 % brightness while resting, 2–3.5 % while nobody's there |
 | **The contour** | A luminous ring whose radius *is* the breath, filled with a faint veil so it reads as a bubble of light rather than an outline | Guidance only |
 | **The horizon** | A dim ring hugging the display edge that blooms inward | The moment of noticing only |
 
@@ -131,10 +131,19 @@ Two details that matter more than they look:
 ### Presence, without saying so
 
 While resting, if the radar is delivering a respiratory-phase signal, the
-ember's size follows *your* breath at about ±16 %. No words, no numbers, no
-indication that anything is being measured. Most people will never consciously
-notice it; it is the difference between an object that is on and an object that
-is present.
+ember's size and brightness follow *your* breath, clearly enough to catch at a
+glance rather than needing to be sought out. No words, no numbers, no
+indication that anything is being measured — it is the difference between an
+object that is on and an object that is present.
+
+The ember also carries one more signal, just as wordlessly: a gentle warmth
+that tracks the detector's own smoothed, baseline-relative activation score —
+0 at your seated baseline, rising toward the same threshold that would
+eventually start a session. Not raw heart rate, and deliberately not alarm
+language or an alert colour: the score only moves with a genuine sustained
+shift, so it cannot flicker on an ordinary momentary blip, and by the time a
+session actually begins the ember has already been quietly responding rather
+than snapping into a warning state.
 
 ## 5. Verbal design
 

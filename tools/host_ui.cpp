@@ -129,6 +129,7 @@ int main(int argc, char** argv) {
       {400, "awakening-spark"},
       {1200, "awakening-wave"},
       {4000, "resting"},
+      {sessionAtMs - 300, "resting-warm"},
       {sessionAtMs + 700, "noticing-bloom"},
       {sessionAtMs + 2200, "noticing-words"},
       {sessionAtMs + 4600, "noticing-inward"},
@@ -162,6 +163,13 @@ int main(int argc, char** argv) {
       ui.startSession(hostNowMs, true);
     }
     ui.setPresence(true);
+    // Stays at baseline through the "resting" sample, then a sustained shift
+    // builds toward the session, so "resting-warm" shows the ember's
+    // continuity precursor rather than a mid-ramp value at both samples.
+    float activation = (static_cast<float>(hostNowMs) - 4400.0f) / 1400.0f;
+    if (activation < 0.0f) activation = 0.0f;
+    if (activation > 1.0f) activation = 1.0f;
+    ui.setActivation(hostNowMs < sessionAtMs ? activation : 0.0f);
     ui.setLiveBreathPhase(sinf(hostNowMs * 0.0013f), true, hostNowMs);
     ui.update(hostNowMs);
     lv_timer_handler();

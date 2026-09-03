@@ -235,6 +235,48 @@ int main() {
            "waking should be visible");
   }
 
+  // A gentle warmth precursor to noticing: it tracks the detector's own
+  // activation score while resting, stays neutral at baseline, and never
+  // touches sleeping (nobody's there to warm the ember for).
+  {
+    BreathScene warm(config);
+    warm.begin(0);
+    for (uint32_t now = kStepMs; now <= 3000; now += kStepMs) {
+      SceneInput input = at(now);
+      input.activationScore = 0.0f;
+      warm.update(input);
+    }
+    assert(warm.state() == SceneState::Resting);
+    const float atBaseline = warm.output().field.warmth;
+    assert(atBaseline < 0.02f && "warmth should sit near neutral at baseline");
+
+    for (uint32_t now = 3040; now <= 8000; now += kStepMs) {
+      SceneInput input = at(now);
+      input.activationScore = 1.0f;
+      warm.update(input);
+    }
+    const float atActivation = warm.output().field.warmth;
+    assert(atActivation > atBaseline + 0.15f &&
+           "a sustained rise in activation should visibly warm the ember");
+
+    // Asleep, nobody's there: warmth must not apply regardless of score.
+    BreathScene asleepWarm(config);
+    asleepWarm.begin(0);
+    SceneConfig sleepy = config;
+    sleepy.sleepAfterMs = 2000;
+    asleepWarm.setConfig(sleepy);
+    for (uint32_t now = kStepMs; now <= 1500; now += kStepMs)
+      asleepWarm.update(at(now));
+    for (uint32_t now = 1540; now <= 6000; now += kStepMs) {
+      SceneInput input = at(now, false);
+      input.activationScore = 1.0f;
+      asleepWarm.update(input);
+    }
+    assert(asleepWarm.state() == SceneState::Sleeping);
+    assert(asleepWarm.output().field.warmth < 0.02f &&
+           "sleeping must stay neutral no matter the activation score");
+  }
+
   printf("breath scene: ok\n");
   return 0;
 }

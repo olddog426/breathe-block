@@ -172,6 +172,7 @@ void BreathingUI::update(uint32_t nowMs) {
       phaseInitialised_ &&
       static_cast<uint32_t>(nowMs - lastLivePhaseMs_) < 900;
   input.liveBreath = liveBreath_;
+  input.activationScore = activationScore_;
   scene_.update(input);
 
   const SceneOutput& out = scene_.output();

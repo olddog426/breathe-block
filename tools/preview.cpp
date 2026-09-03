@@ -90,7 +90,8 @@ int main(int argc, char** argv) {
   const uint32_t sessionAtMs = 6000;
   const std::vector<Moment> moments = {
       {400, "awakening-spark"},   {1200, "awakening-wave"},
-      {4000, "resting"},          {6700, "noticing-bloom"},
+      {4000, "resting"},          {sessionAtMs - 300, "resting-warm"},
+      {6700, "noticing-bloom"},
       {8200, "noticing-words"},   {10600, "noticing-inward"},
       {12000, "inviting"},        {14200, "inviting-settle"},
       {15600, "guide-inhale"},    {18000, "guide-full"},
@@ -122,6 +123,13 @@ int main(int argc, char** argv) {
     input.presence = true;
     input.livePhaseValid = true;
     input.liveBreath = sinf(now * 0.0013f);
+    // Stays at baseline through the "resting" sample, then a sustained shift
+    // builds toward the session, so "resting-warm" shows the ember's
+    // continuity precursor rather than a mid-ramp value at both samples.
+    float activation = (static_cast<float>(now) - 4400.0f) / 1400.0f;
+    if (activation < 0.0f) activation = 0.0f;
+    if (activation > 1.0f) activation = 1.0f;
+    input.activationScore = now < sessionAtMs ? activation : 0.0f;
     scene.update(input);
 
     if (now >= moments[next].atMs) {

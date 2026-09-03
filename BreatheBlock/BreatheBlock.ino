@@ -159,6 +159,7 @@ void loop() {
   }
 
   ui.setPresence(signs.presence);
+  ui.setActivation(assessment.activationScore);
   ui.setLiveBreathPhase(signs.breathPhase, signs.breathPhaseFresh, nowMs);
   ui.setTestingVitals(signs.heartRate, signs.breathRate);
   ui.update(nowMs);

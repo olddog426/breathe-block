@@ -117,8 +117,9 @@ const CFG = {
   inhaleMs: 4000, exhaleMs: 6000, breathCycles: 5,
   awakenMs: 2600, noticeMs: 5200, inviteMs: 3400,
   releaseMs: 4600, dismissMs: 2000, sleepAfterMs: 180000,
-  restCoreRadius: 30, restCoreLevel: 0.085,
+  restCoreRadius: 38, restCoreLevel: 0.16,
   sleepCoreRadius: 24, sleepCoreLevel: 0.028,
+  restActivationWarmth: 0.30,
   ringMinRadius: 100, ringMaxRadius: 184,
   ringOuterWidth: 20, ringOuterWidthFull: 28,
   ringInnerWidth: 22, ringInnerWidthFull: 14,
@@ -163,6 +164,11 @@ const scene = {
   releaseMs: CFG.releaseMs, releaseRing: 100, releaseLevel: 0, releaseVeil: 0,
   releaseOuter: CFG.ringOuterWidth, releaseInner: CFG.ringInnerWidth,
   drift: 1, dismissed: false, presence: true,
+  // The detector's own smoothed, baseline-relative activation score (0 at
+  // baseline, 1 at the real trigger threshold). This standalone demo has no
+  // detector to drive it, so it stays at rest's neutral warmth — the field
+  // math mirrors the firmware exactly regardless.
+  activationScore: 0,
 };
 
 function enter(state, now) {
@@ -220,8 +226,15 @@ function buildTarget(now) {
       const breath = Math.sin(now * (2 * Math.PI / period));
       const radius = asleep ? CFG.sleepCoreRadius : CFG.restCoreRadius;
       const level = asleep ? CFG.sleepCoreLevel : CFG.restCoreLevel;
-      target.coreRadius = radius * (1 + 0.16 * breath);
-      target.coreLevel = level * (1 + 0.20 * breath);
+      // Awake, the pulse is meant to be caught at a glance; asleep it stays
+      // closer to imperceptible, since nobody's there to breathe with.
+      const radiusDepth = asleep ? 0.16 : 0.32;
+      const levelDepth = asleep ? 0.20 : 0.40;
+      target.coreRadius = radius * (1 + radiusDepth * breath);
+      target.coreLevel = level * (1 + levelDepth * breath);
+      // A gentle warmth precursor to noticing — continuity, not an alert.
+      target.warmth = asleep ? 0
+                             : CFG.restActivationWarmth * clamp01(scene.activationScore);
       break;
     }
     case 'noticing': {

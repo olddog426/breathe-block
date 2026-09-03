@@ -238,8 +238,19 @@ void BreathScene::buildTarget(const SceneInput& input, BreathField* target) {
       const float breath =
           mix(idle, input.liveBreath, asleep ? 0.0f : liveWeight_);
 
-      target->coreRadius = baseRadius * (1.0f + 0.16f * breath);
-      target->coreLevel = baseLevel * (1.0f + 0.20f * breath);
+      // Awake, the pulse is meant to be caught at a glance; asleep it stays
+      // closer to imperceptible, since nobody's there to breathe with.
+      const float radiusDepth = asleep ? 0.16f : 0.32f;
+      const float levelDepth = asleep ? 0.20f : 0.40f;
+      target->coreRadius = baseRadius * (1.0f + radiusDepth * breath);
+      target->coreLevel = baseLevel * (1.0f + levelDepth * breath);
+
+      // A gentle warmth precursor to noticing. Continuity, not an alert: by
+      // the time a session actually starts, the ember has already been
+      // quietly responding.
+      target->warmth = asleep ? 0.0f
+                              : c.restActivationWarmth *
+                                    clamp01(input.activationScore);
       break;
     }
 
