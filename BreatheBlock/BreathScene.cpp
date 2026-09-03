@@ -96,6 +96,10 @@ bool BreathScene::sessionActive() const {
          state_ == SceneState::Guiding || state_ == SceneState::Releasing;
 }
 
+bool BreathScene::interactive() const {
+  return state_ == SceneState::CheckingIn || state_ == SceneState::Countdown;
+}
+
 bool BreathScene::consumeSessionFinished() {
   const bool value = sessionFinished_;
   sessionFinished_ = false;
@@ -103,17 +107,33 @@ bool BreathScene::consumeSessionFinished() {
 }
 
 void BreathScene::requestSession(uint32_t nowMs, bool announceShift) {
-  if (sessionActive()) return;
+  if (sessionActive() || interactive()) return;
   dismissed_ = false;
   progressValue_ = 0.0f;
   enter(announceShift ? SceneState::Noticing : SceneState::Inviting, nowMs);
 }
 
 void BreathScene::dismiss(uint32_t nowMs) {
+  if (interactive()) {
+    enter(SceneState::Resting, nowMs);
+    return;
+  }
   if (!sessionActive() || state_ == SceneState::Releasing) return;
   dismissed_ = true;
   releaseDurationMs_ = config_.dismissMs;
   enter(SceneState::Releasing, nowMs);
+}
+
+void BreathScene::handleTap(uint32_t nowMs) {
+  if (state_ == SceneState::Resting) {
+    checkInHeartRate_ = lastDisplayHeartRate_;
+    checkInBreathRate_ = lastDisplayBreathRate_;
+    enter(SceneState::CheckingIn, nowMs);
+  } else if (state_ == SceneState::CheckingIn) {
+    enter(SceneState::Countdown, nowMs);
+  }
+  // Elsewhere, a tap isn't a gesture this device recognises yet — ignored
+  // rather than guessed at.
 }
 
 void BreathScene::goToSleep(uint32_t nowMs) {
@@ -135,6 +155,8 @@ void BreathScene::update(const SceneInput& input) {
   lastUpdateMs_ = input.nowMs;
 
   if (input.presence) lastPresenceMs_ = input.nowMs;
+  lastDisplayHeartRate_ = input.displayHeartRate;
+  lastDisplayBreathRate_ = input.displayBreathRate;
 
   // Timed state transitions.
   switch (state_) {
@@ -152,6 +174,18 @@ void BreathScene::update(const SceneInput& input) {
       break;
     case SceneState::Sleeping:
       if (input.presence) enter(SceneState::Resting, input.nowMs);
+      break;
+    case SceneState::CheckingIn:
+      if (elapsed(input.nowMs) >= config_.checkInMs) {
+        enter(SceneState::Resting, input.nowMs);
+      }
+      break;
+    case SceneState::Countdown:
+      if (elapsed(input.nowMs) >= config_.countdownStepMs * 3) {
+        dismissed_ = false;
+        progressValue_ = 0.0f;
+        enter(SceneState::Guiding, input.nowMs);
+      }
       break;
     case SceneState::Noticing:
       if (elapsed(input.nowMs) >= config_.noticeMs) {
@@ -205,6 +239,12 @@ void BreathScene::buildTarget(const SceneInput& input, BreathField* target) {
   float wellRadius = c.wellRadius;
   float wantsProgress = 0.0f;
   float driftTarget = 1.0f;
+  float displayHeartRate = 0.0f;
+  float displayBreathRate = 0.0f;
+  float vitalsOpacity = 0.0f;
+  float heartbeatPulse = 0.0f;
+  uint8_t countdownNumber = 0;
+  float countdownOpacity = 0.0f;
 
   switch (state_) {
     case SceneState::Awakening: {
@@ -228,8 +268,14 @@ void BreathScene::buildTarget(const SceneInput& input, BreathField* target) {
     case SceneState::Resting:
     case SceneState::Sleeping: {
       const bool asleep = state_ == SceneState::Sleeping;
-      const float baseRadius = asleep ? c.sleepCoreRadius : c.restCoreRadius;
-      const float baseLevel = asleep ? c.sleepCoreLevel : c.restCoreLevel;
+      const float activation = asleep ? 0.0f : clamp01(input.activationScore);
+      // The ember doesn't just warm as activation climbs — it visibly grows
+      // and brightens too, so the approach to a session is unmistakable well
+      // before one actually begins.
+      const float baseRadius = (asleep ? c.sleepCoreRadius : c.restCoreRadius) *
+                               (1.0f + c.restActivationGrowth * activation);
+      const float baseLevel = (asleep ? c.sleepCoreLevel : c.restCoreLevel) *
+                              (1.0f + c.restActivationBrighten * activation);
 
       // Idle rhythm, deliberately slower than a person breathes so it reads as
       // the object idling rather than as the object tracking you.
@@ -248,9 +294,72 @@ void BreathScene::buildTarget(const SceneInput& input, BreathField* target) {
       // A gentle warmth precursor to noticing. Continuity, not an alert: by
       // the time a session actually starts, the ember has already been
       // quietly responding.
-      target->warmth = asleep ? 0.0f
-                              : c.restActivationWarmth *
-                                    clamp01(input.activationScore);
+      target->warmth = c.restActivationWarmth * activation;
+      break;
+    }
+
+    case SceneState::CheckingIn: {
+      const float fadeIn = ramp(t, 0.0f, 500.0f);
+      const float fadeOut =
+          ramp(t, static_cast<float>(c.checkInMs) - 600.0f,
+               static_cast<float>(c.checkInMs));
+      const float presence = fadeIn * (1.0f - fadeOut);
+
+      // A brightening pulse timed to each detected heartbeat — a rhythm of
+      // light standing in for a waveform we don't actually have, rather than
+      // a fabricated trace. A sharp attack, then a decay, once per beat.
+      float beat = 0.0f;
+      if (checkInHeartRate_ > 20.0f && checkInHeartRate_ < 220.0f) {
+        const float periodMs = 60000.0f / checkInHeartRate_;
+        const float phase = fmodf(t, periodMs) / periodMs;
+        beat = phase < 0.08f ? smoothstep(phase / 0.08f)
+                             : expf(-5.0f * (phase - 0.08f));
+      }
+
+      target->coreRadius = c.checkInCoreRadius;
+      target->coreLevel = c.checkInCoreLevel * presence * (1.0f + 0.55f * beat);
+      target->ringRadius = mix(c.ringMinRadius, c.checkInCoreRadius + 46.0f,
+                               presence);
+      target->ringLevel = 0.16f * presence * (1.0f + 0.35f * beat);
+      target->veilLevel = 0.03f * presence;
+
+      displayHeartRate = checkInHeartRate_;
+      displayBreathRate = checkInBreathRate_;
+      vitalsOpacity = presence;
+      heartbeatPulse = beat;
+      wellRadius = c.messageWellRadius;
+      driftTarget = 0.0f;
+      break;
+    }
+
+    case SceneState::Countdown: {
+      const uint32_t stepMs = c.countdownStepMs;
+      const uint32_t stepMsElapsed = elapsed(input.nowMs);
+      const uint32_t stepIndex = stepMsElapsed / stepMs;
+      const uint32_t withinStep = stepMsElapsed % stepMs;
+
+      // Continue from wherever the ring already was (check-in, or a direct
+      // tap-tap from rest) and ease toward the floor of the breath, so
+      // guidance picks it up smoothly with no reset.
+      const float settle = ramp(t, 0.0f, static_cast<float>(stepMs) * 2.6f);
+      target->ringRadius = mix(output_.field.ringRadius, c.ringMinRadius,
+                               settle);
+      target->ringInnerWidth = c.ringInnerWidth;
+      target->ringOuterWidth = c.ringOuterWidth;
+      target->ringLevel = mix(0.16f, 0.40f, settle);
+      target->veilLevel = mix(0.03f, 0.05f, settle);
+      target->coreLevel = 0.0f;
+
+      // A quick, legible beat for each number — fast in, a solid hold, fast
+      // out — rather than the slow fade built for whole phrases.
+      const float stepT = static_cast<float>(withinStep);
+      const float stepLen = static_cast<float>(stepMs);
+      const float numberIn = ramp(stepT, 0.0f, 150.0f);
+      const float numberOut = ramp(stepT, stepLen - 250.0f, stepLen);
+      countdownNumber =
+          stepIndex < 3 ? static_cast<uint8_t>(3 - stepIndex) : 0;
+      countdownOpacity = numberIn * (1.0f - numberOut);
+      driftTarget = 0.0f;
       break;
     }
 
@@ -376,9 +485,13 @@ void BreathScene::buildTarget(const SceneInput& input, BreathField* target) {
     }
   }
 
-  // The light steps aside wherever a word is.
+  // The light steps aside wherever there's something to read — a word, the
+  // check-in numbers, or a countdown digit.
+  float protectiveOpacity = textOpacity;
+  if (vitalsOpacity > protectiveOpacity) protectiveOpacity = vitalsOpacity;
+  if (countdownOpacity > protectiveOpacity) protectiveOpacity = countdownOpacity;
   target->wellRadius = wellRadius;
-  target->wellDepth = kWellDepth * textOpacity;
+  target->wellDepth = kWellDepth * protectiveOpacity;
 
   // Slow wander: burn-in care, and it keeps the object from looking pinned.
   // It eases away entirely during a session so the ring stays concentric with
@@ -399,6 +512,12 @@ void BreathScene::buildTarget(const SceneInput& input, BreathField* target) {
   output_.text = text;
   output_.textOpacity = textOpacity;
   output_.progressOpacity = wantsProgress;
+  output_.displayHeartRate = displayHeartRate;
+  output_.displayBreathRate = displayBreathRate;
+  output_.vitalsOpacity = vitalsOpacity;
+  output_.heartbeatPulse = heartbeatPulse;
+  output_.countdownNumber = countdownNumber;
+  output_.countdownOpacity = countdownOpacity;
 }
 
 void BreathScene::approach(BreathField* current, const BreathField& target,

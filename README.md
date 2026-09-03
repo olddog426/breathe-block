@@ -3,7 +3,9 @@
 A small desk object that sits quietly, notices when your breathing has shifted,
 and offers to breathe with you for a minute. Waveshare
 ESP32-S3-Touch-AMOLED-1.43 (466 × 466 round AMOLED) with a Hi-Link HLK-LD6002
-radar. No camera, no microphone, no numbers on screen, and no medical claims.
+radar. No camera, no microphone, and no medical claims. Nothing is shown on
+screen unasked — the one exception is a tap, which checks in with your heart
+rate and breath rate for a few seconds before fading back to quiet.
 
 **[DESIGN.md](DESIGN.md) is the interface concept and state flow.** Read that
 first; this file is how to run it.
@@ -57,12 +59,23 @@ Either way a serial console is on 115200:
 ```
 n  a noticed session          s  sleep       w  wake
 m  a session you started      b  hold the simulated body in activation
-x  dismiss                    t  toggle the looping tour
-r  return to quiet            p  next palette    f  frame timings    ?  help
+c  simulate a tap             t  toggle the looping tour
+x  dismiss                    p  next palette    f  frame timings    ?  help
+r  return to quiet
 ```
+
+`c` (no touch hardware needed) checks in with heart rate and breath rate; a
+second `c` starts a 3-2-1 into the breathing exercise, exactly as a tap on the
+glass would.
 
 `f` reports how long the light field takes to composite and how many pixels the
 average flush touches — worth checking after any change to the geometry.
+
+The board's FT3168 touch controller is already wired to fixed pins (see
+`board_config.h`), so no extra wiring is needed to try a real tap — but its
+register map (`TouchSensor.cpp`) is ported from the common FocalTech
+FT5x06-family layout and hasn't been checked against the FT3168's own
+datasheet, so expect it to need a round of on-device tuning.
 
 ## Connecting the radar
 
@@ -109,6 +122,7 @@ resting ember is) lives in `SceneConfig` in `BreathScene.h`.
 | `BreathScene.{h,cpp}` | the state machine and all of the easing — likewise |
 | `BreathingUI.{h,cpp}` | LVGL: text, the progress hairline, dirty rectangles |
 | `DemoDirector.{h,cpp}` | the tour, the button, the serial console |
+| `TouchSensor.{h,cpp}` | polls the FT3168 over I²C and turns presses into a tap |
 | `RadarSensor`, `LD6002`, `StressEngine` | radar, its packet parser, and the noticing logic |
 | `amoled.*`, `low_level_amoled.*`, `board_config.h` | Waveshare display driver (MIT, see `THIRD_PARTY_NOTICES.md`) |
 

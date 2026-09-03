@@ -24,15 +24,23 @@ class BreathingUI {
   void setActivation(float score) { activationScore_ = score; }
   void setLiveBreathPhase(float phase, bool fresh, uint32_t nowMs);
   void setTestingVitals(float heartRate, float breathRate);
+  // A short, human-legible average for the check-in display — "how am I
+  // doing right now," not the detector's own slow seated baseline. Ignores
+  // implausible zero/negative readings rather than let one bad packet drag
+  // the average down.
+  void setVitals(float heartRate, float breathRate, uint32_t nowMs);
   void setPalette(const BreathPalette& palette);
   const BreathPalette& palette() const { return palette_; }
 
   void startSession(uint32_t nowMs, bool announceShift);
   void dismiss(uint32_t nowMs);
+  // A single tap: see BreathScene::handleTap for what it does at each state.
+  void handleTap(uint32_t nowMs) { scene_.handleTap(nowMs); }
   void goToSleep(uint32_t nowMs) { scene_.goToSleep(nowMs); }
   void wake(uint32_t nowMs) { scene_.wake(nowMs); }
 
   bool sessionActive() const { return scene_.sessionActive(); }
+  bool interactive() const { return scene_.interactive(); }
   bool consumeSessionFinished() { return scene_.consumeSessionFinished(); }
   SceneState state() const { return scene_.state(); }
   const char* stateName() const;
@@ -46,6 +54,7 @@ class BreathingUI {
  private:
   void applyText(const SceneOutput& out);
   void applyProgress(const SceneOutput& out);
+  void applyNumberDisplay(const SceneOutput& out);
   void invalidateGlow(bool fieldChanged);
 
   BreathScene scene_;
@@ -57,15 +66,28 @@ class BreathingUI {
   lv_obj_t* label_ = nullptr;
   lv_obj_t* arc_ = nullptr;
   lv_obj_t* vitalsLabel_ = nullptr;
+  // The check-in numbers and the countdown digits — never shown at once, so
+  // one label serves both, kept apart from the ambient word label above.
+  lv_obj_t* numberLabel_ = nullptr;
 
   lv_area_t previousBox_ = {0, 0, -1, -1};
   SceneText shownText_ = SceneText::None;
   uint8_t shownTextOpacity_ = 0;
   uint8_t shownArcOpacity_ = 0;
   int16_t shownArcValue_ = -1;
+  // 0 = nothing, 1 = the vitals snapshot, 2 = a countdown digit.
+  uint8_t shownNumberKind_ = 0;
+  uint8_t shownCountdownNumber_ = 0;
+  uint8_t shownNumberOpacity_ = 0;
 
   float liveBreath_ = 0.0f;
   float activationScore_ = 0.0f;
+  // A short, human-legible average of heart rate and breath rate — see
+  // setVitals(). Separate from the detector's own slow seated baseline.
+  float displayHeartRate_ = 0.0f;
+  float displayBreathRate_ = 0.0f;
+  uint32_t lastVitalsMs_ = 0;
+  bool vitalsInitialised_ = false;
   float phaseCenter_ = 0.0f;
   float phaseAmplitude_ = 0.08f;
   uint32_t lastLivePhaseMs_ = 0;

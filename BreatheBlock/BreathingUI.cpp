@@ -90,6 +90,16 @@ void BreathingUI::begin() {
   lv_label_set_text(label_, "");
   lv_obj_center(label_);
 
+  numberLabel_ = lv_label_create(screen_);
+  lv_obj_set_style_text_color(numberLabel_, lv_color_hex(kTextColor), 0);
+  lv_obj_set_style_text_font(numberLabel_, &lv_font_montserrat_24, 0);
+  lv_obj_set_style_text_letter_space(numberLabel_, 3, 0);
+  lv_obj_set_style_text_line_space(numberLabel_, 10, 0);
+  lv_obj_set_style_text_align(numberLabel_, LV_TEXT_ALIGN_CENTER, 0);
+  lv_obj_set_style_text_opa(numberLabel_, LV_OPA_TRANSP, 0);
+  lv_label_set_text(numberLabel_, "");
+  lv_obj_center(numberLabel_);
+
   vitalsLabel_ = lv_label_create(screen_);
   lv_obj_set_style_text_color(vitalsLabel_, lv_color_hex(0x6C7A70), 0);
   lv_obj_set_style_text_font(vitalsLabel_, &lv_font_montserrat_14, 0);
@@ -112,6 +122,8 @@ const char* BreathingUI::stateName() const {
     case SceneState::Awakening: return "awakening";
     case SceneState::Resting: return "resting";
     case SceneState::Sleeping: return "sleeping";
+    case SceneState::CheckingIn: return "checking-in";
+    case SceneState::Countdown: return "countdown";
     case SceneState::Noticing: return "noticing";
     case SceneState::Inviting: return "inviting";
     case SceneState::Guiding: return "guiding";
@@ -142,13 +154,42 @@ void BreathingUI::setLiveBreathPhase(float phase, bool fresh, uint32_t nowMs) {
   lastLivePhaseMs_ = nowMs;
 }
 
+void BreathingUI::setVitals(float heartRate, float breathRate,
+                           uint32_t nowMs) {
+  if (!(heartRate > 0.0f) || !(breathRate > 0.0f)) return;
+
+  if (!vitalsInitialised_) {
+    vitalsInitialised_ = true;
+    displayHeartRate_ = heartRate;
+    displayBreathRate_ = breathRate;
+    lastVitalsMs_ = nowMs;
+    return;
+  }
+
+  float dtMs = static_cast<float>(static_cast<uint32_t>(nowMs - lastVitalsMs_));
+  if (dtMs < 1.0f) dtMs = 1.0f;
+  if (dtMs > 2000.0f) dtMs = 2000.0f;
+  lastVitalsMs_ = nowMs;
+
+  // "Averaged over a period," not the instant reading: roughly a nine-second
+  // window, long enough to settle, short enough to still mean "right now."
+  constexpr float kTauMs = 9000.0f;
+  const float k = dtMs / (kTauMs + dtMs);
+  displayHeartRate_ += (heartRate - displayHeartRate_) * k;
+  displayBreathRate_ += (breathRate - displayBreathRate_) * k;
+}
+
 void BreathingUI::setTestingVitals(float heartRate, float breathRate) {
   if (!BreatheBlockConfig::kShowVitalsDuringTesting ||
       scene_.state() != SceneState::Resting) {
     lv_obj_set_style_text_opa(vitalsLabel_, LV_OPA_TRANSP, 0);
     return;
   }
-  lv_label_set_text_fmt(vitalsLabel_, "%.0f  ·  %.0f", heartRate, breathRate);
+  // LVGL's builtin sprintf has no %f support (LV_USE_FLOAT is off), so round
+  // to whole numbers in C++ first.
+  lv_label_set_text_fmt(vitalsLabel_, "%d  ·  %d",
+                        static_cast<int>(lroundf(heartRate)),
+                        static_cast<int>(lroundf(breathRate)));
   lv_obj_set_style_text_opa(vitalsLabel_, 90, 0);
   lv_obj_align(vitalsLabel_, LV_ALIGN_TOP_MID, 0, 56);
 }
@@ -173,6 +214,8 @@ void BreathingUI::update(uint32_t nowMs) {
       static_cast<uint32_t>(nowMs - lastLivePhaseMs_) < 900;
   input.liveBreath = liveBreath_;
   input.activationScore = activationScore_;
+  input.displayHeartRate = displayHeartRate_;
+  input.displayBreathRate = displayBreathRate_;
   scene_.update(input);
 
   const SceneOutput& out = scene_.output();
@@ -184,6 +227,7 @@ void BreathingUI::update(uint32_t nowMs) {
 
   applyText(out);
   applyProgress(out);
+  applyNumberDisplay(out);
   invalidateGlow(fieldChanged);
   firstFrame_ = false;
 }
@@ -233,6 +277,59 @@ void BreathingUI::applyProgress(const SceneOutput& out) {
   if (value != shownArcValue_) {
     shownArcValue_ = value;
     lv_arc_set_value(arc_, value);
+  }
+}
+
+void BreathingUI::applyNumberDisplay(const SceneOutput& out) {
+  // Which content is wanted comes from the discrete scene state, never from
+  // the continuous opacity fade — an opacity threshold would almost always
+  // cross into "visible" on a frame where the fade has already left zero,
+  // starving the swap-only-while-invisible check below of the exact-zero
+  // frame it needs, so the numbers would never actually appear.
+  const uint8_t wantKind = out.state == SceneState::CheckingIn   ? 1
+                            : out.state == SceneState::Countdown ? 2
+                                                                  : 0;
+
+  float opacityScale = wantKind == 1   ? out.vitalsOpacity
+                        : wantKind == 2 ? out.countdownOpacity
+                                        : 0.0f;
+  if (opacityScale < 0.0f) opacityScale = 0.0f;
+  if (opacityScale > 1.0f) opacityScale = 1.0f;
+  uint8_t opacity = static_cast<uint8_t>(kTextOpacity * opacityScale);
+
+  const bool contentChanged =
+      wantKind != shownNumberKind_ ||
+      (wantKind == 2 && out.countdownNumber != shownCountdownNumber_);
+
+  // Content only ever changes while invisible, exactly like the ambient
+  // word label: a countdown digit or the vitals snapshot never cross-fades
+  // into the next thing.
+  if (contentChanged) {
+    if (opacity == 0) {
+      shownNumberKind_ = wantKind;
+      shownCountdownNumber_ = out.countdownNumber;
+      if (wantKind == 1) {
+        lv_obj_set_style_text_font(numberLabel_, &lv_font_montserrat_24, 0);
+        // LVGL's builtin sprintf has no %f support (LV_USE_FLOAT is off), so
+        // round to whole numbers in C++ first.
+        lv_label_set_text_fmt(numberLabel_, "%d bpm\n%d / min",
+                              static_cast<int>(lroundf(out.displayHeartRate)),
+                              static_cast<int>(lroundf(out.displayBreathRate)));
+      } else if (wantKind == 2) {
+        lv_obj_set_style_text_font(numberLabel_, &lv_font_montserrat_28, 0);
+        lv_label_set_text_fmt(numberLabel_, "%u", out.countdownNumber);
+      } else {
+        lv_label_set_text(numberLabel_, "");
+      }
+      lv_obj_center(numberLabel_);
+    } else {
+      opacity = 0;  // hold the old content invisible until the swap can happen
+    }
+  }
+
+  if (opacity != shownNumberOpacity_) {
+    shownNumberOpacity_ = opacity;
+    lv_obj_set_style_text_opa(numberLabel_, opacity, 0);
   }
 }
 

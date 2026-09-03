@@ -39,6 +39,8 @@ const char* name(SceneState state) {
     case SceneState::Awakening: return "awakening";
     case SceneState::Resting: return "resting";
     case SceneState::Sleeping: return "sleeping";
+    case SceneState::CheckingIn: return "checking-in";
+    case SceneState::Countdown: return "countdown";
     case SceneState::Noticing: return "noticing";
     case SceneState::Inviting: return "inviting";
     case SceneState::Guiding: return "guiding";
@@ -275,6 +277,132 @@ int main() {
     assert(asleepWarm.state() == SceneState::Sleeping);
     assert(asleepWarm.output().field.warmth < 0.02f &&
            "sleeping must stay neutral no matter the activation score");
+  }
+
+  // A tap while resting shows a snapshot of your numbers, warms up and cools
+  // back down without a jump anywhere in the sequence, and — left alone —
+  // quietly returns to rest rather than waiting forever.
+  {
+    BreathScene checkIn(config);
+    checkIn.begin(0);
+    BreathField previous = checkIn.output().field;
+    float worstStep = 0.0f;
+
+    auto stepAndTrack = [&](uint32_t now, float heartRate, float breathRate) {
+      SceneInput input = at(now);
+      input.displayHeartRate = heartRate;
+      input.displayBreathRate = breathRate;
+      checkIn.update(input);
+      const float step = profileDistance(previous, checkIn.output().field);
+      if (step > worstStep) worstStep = step;
+      previous = checkIn.output().field;
+    };
+
+    for (uint32_t now = kStepMs; now <= 3000; now += kStepMs)
+      stepAndTrack(now, 68.0f, 13.0f);
+    assert(checkIn.state() == SceneState::Resting);
+
+    checkIn.handleTap(3000);
+    stepAndTrack(3040, 68.0f, 13.0f);
+    assert(checkIn.state() == SceneState::CheckingIn);
+    assert(checkIn.output().displayHeartRate == 68.0f);
+    assert(checkIn.output().displayBreathRate == 13.0f);
+
+    // The numbers are a snapshot: later readings must not change what's
+    // shown, or the display would jitter while you're trying to read it.
+    for (uint32_t now = 3080; now <= 3600; now += kStepMs)
+      stepAndTrack(now, 140.0f, 30.0f);  // a wildly different live reading
+    assert(checkIn.output().displayHeartRate == 68.0f &&
+           "the check-in display must hold its snapshot, not track live input");
+
+    bool sawBeat = false;
+    for (uint32_t now = 3640; now <= 9200; now += kStepMs) {
+      stepAndTrack(now, 68.0f, 13.0f);
+      if (checkIn.output().heartbeatPulse > 0.5f) sawBeat = true;
+    }
+    assert(sawBeat && "a plausible heart rate should produce visible beats");
+    assert(checkIn.state() == SceneState::Resting &&
+           "an unacknowledged check-in should quietly return to rest");
+    assert(checkIn.output().heartbeatPulse == 0.0f &&
+           "the pulse must not continue once resting again");
+
+    printf("check-in: worst frame-to-frame change %.4f\n", worstStep);
+    assert(worstStep < 0.09f && "a frame changed abruptly");
+  }
+
+  // Tapping again while checked in counts down 3, 2, 1 and starts a session
+  // you asked for yourself — never claiming to have noticed anything.
+  {
+    BreathScene tapTap(config);
+    tapTap.begin(0);
+    for (uint32_t now = kStepMs; now <= 3000; now += kStepMs)
+      tapTap.update(at(now));
+
+    tapTap.handleTap(3000);
+    tapTap.update(at(3040));
+    assert(tapTap.state() == SceneState::CheckingIn);
+
+    tapTap.handleTap(3040);
+    tapTap.update(at(3080));
+    assert(tapTap.state() == SceneState::Countdown);
+
+    std::vector<int> numbersSeen;
+    int lastNumber = -1;
+    bool sawShiftedClaim = false;
+    for (uint32_t now = 3120; now <= 3080 + config.countdownStepMs * 3 + 200;
+         now += kStepMs) {
+      tapTap.update(at(now));
+      const int current = tapTap.output().countdownNumber;
+      if (current != 0 && current != lastNumber) {
+        numbersSeen.push_back(current);
+        lastNumber = current;
+      }
+      if (tapTap.output().text == SceneText::BreathingShifted) {
+        sawShiftedClaim = true;
+      }
+    }
+    assert((numbersSeen == std::vector<int>{3, 2, 1}) &&
+           "the countdown must count 3, 2, 1 in order");
+    assert(!sawShiftedClaim &&
+           "a session you asked for must never claim to have noticed anything");
+    assert(tapTap.state() == SceneState::Guiding);
+  }
+
+  // A tap anywhere else — mid-session, asleep — is not a gesture this device
+  // recognises yet, and must be inert rather than guessed at.
+  {
+    BreathScene ignored(config);
+    ignored.begin(0);
+    for (uint32_t now = kStepMs; now <= 3000; now += kStepMs)
+      ignored.update(at(now));
+    ignored.requestSession(3000, true);
+    ignored.update(at(3040));
+    assert(ignored.state() == SceneState::Noticing);
+    ignored.handleTap(3040);
+    ignored.update(at(3080));
+    assert(ignored.state() == SceneState::Noticing &&
+           "a tap during an announced session must not be reinterpreted");
+  }
+
+  // Dismissing out of a check-in or a countdown returns to rest immediately,
+  // and a radar-announced session must never barge in on top of either.
+  {
+    BreathScene cancel(config);
+    cancel.begin(0);
+    for (uint32_t now = kStepMs; now <= 3000; now += kStepMs)
+      cancel.update(at(now));
+    cancel.handleTap(3000);
+    cancel.update(at(3040));
+    assert(cancel.state() == SceneState::CheckingIn);
+
+    cancel.requestSession(3040, true);
+    cancel.update(at(3080));
+    assert(cancel.state() == SceneState::CheckingIn &&
+           "an announced session must wait for the check-in to finish");
+
+    cancel.dismiss(3080);
+    cancel.update(at(3120));
+    assert(cancel.state() == SceneState::Resting);
   }
 
   printf("breath scene: ok\n");

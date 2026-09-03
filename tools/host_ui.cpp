@@ -125,6 +125,11 @@ int main(int argc, char** argv) {
   const uint32_t cycleMs = cfg.inhaleMs + cfg.exhaleMs;
   const uint32_t guideEndMs = guideAtMs + cycleMs * cfg.breathCycles;
   const uint32_t lastCycle = cfg.breathCycles - 1;
+  // A tap-tap check-in-and-countdown, exercised well after the noticed
+  // session above has fully released so the two don't overlap.
+  const uint32_t restingAfterMs = guideEndMs + cfg.releaseMs + 3000;
+  const uint32_t firstTapAtMs = restingAfterMs + 1500;
+  const uint32_t secondTapAtMs = firstTapAtMs + 2500;
   const std::vector<Moment> moments = {
       {400, "awakening-spark"},
       {1200, "awakening-wave"},
@@ -145,6 +150,11 @@ int main(int argc, char** argv) {
       {guideEndMs + 1400, "releasing"},
       {guideEndMs + 2600, "releasing-word"},
       {guideEndMs + cfg.releaseMs + 3000, "resting-after"},
+      {firstTapAtMs + 900, "checking-in"},
+      {secondTapAtMs + 300, "countdown-3"},
+      {secondTapAtMs + 1300, "countdown-2"},
+      {secondTapAtMs + 2300, "countdown-1"},
+      {secondTapAtMs + 3000 + 1400, "guide-from-tap"},
   };
 
   FILE* index = fopen((outDir + "/index.txt").c_str(), "w");
@@ -155,12 +165,25 @@ int main(int argc, char** argv) {
 
   size_t next = 0;
   bool requested = false;
+  bool tappedFirst = false;
+  bool tappedSecond = false;
   const uint32_t endMs = moments.back().atMs + 2000;
   for (hostNowMs = 0; hostNowMs <= endMs && next < moments.size();
        hostNowMs += kStepMs) {
     if (!requested && hostNowMs >= sessionAtMs) {
       requested = true;
       ui.startSession(hostNowMs, true);
+    }
+    // A plausible steady reading, so the check-in demo frame has numbers to
+    // show and the heartbeat pulse has a real rhythm.
+    ui.setVitals(68.0f, 13.0f, hostNowMs);
+    if (!tappedFirst && hostNowMs >= firstTapAtMs) {
+      tappedFirst = true;
+      ui.handleTap(hostNowMs);
+    }
+    if (!tappedSecond && hostNowMs >= secondTapAtMs) {
+      tappedSecond = true;
+      ui.handleTap(hostNowMs);
     }
     ui.setPresence(true);
     // Stays at baseline through the "resting" sample, then a sustained shift

@@ -39,6 +39,7 @@
   <div class="controls">
     <button data-act="notice">a noticed session</button>
     <button data-act="manual">a session you started</button>
+    <button data-act="tap">tap (check in, then 3-2-1)</button>
     <button data-act="dismiss">dismiss</button>
     <button data-act="sleep">nobody there</button>
     <button data-act="wake">somebody there</button>
@@ -117,9 +118,12 @@ const CFG = {
   inhaleMs: 4000, exhaleMs: 6000, breathCycles: 5,
   awakenMs: 2600, noticeMs: 5200, inviteMs: 3400,
   releaseMs: 4600, dismissMs: 2000, sleepAfterMs: 180000,
+  checkInMs: 6000, countdownStepMs: 1000,
   restCoreRadius: 38, restCoreLevel: 0.16,
   sleepCoreRadius: 24, sleepCoreLevel: 0.028,
   restActivationWarmth: 0.30,
+  restActivationGrowth: 0.55, restActivationBrighten: 0.70,
+  checkInCoreRadius: 64, checkInCoreLevel: 0.30,
   ringMinRadius: 100, ringMaxRadius: 184,
   ringOuterWidth: 20, ringOuterWidthFull: 28,
   ringInnerWidth: 22, ringInnerWidthFull: 14,
@@ -135,6 +139,11 @@ const TEXT = {
   invite: 'breathe with me',
   inhale: 'inhale', exhale: 'exhale', settled: 'settled',
 };
+
+// This standalone demo has no radar, so a tap's check-in shows this fixed,
+// illustrative reading rather than anything live — same spirit as
+// activationScore below.
+const DEMO_HEART_RATE = 68, DEMO_BREATH_RATE = 13;
 
 function ramp(t, from, to) {
   return to <= from ? (t >= to ? 1 : 0) : smoothstep(clamp01((t - from) / (to - from)));
@@ -169,6 +178,9 @@ const scene = {
   // detector to drive it, so it stays at rest's neutral warmth — the field
   // math mirrors the firmware exactly regardless.
   activationScore: 0,
+  // Snapshot at the moment a tap requests a check-in, so it holds still
+  // while you read it.
+  checkInHeartRate: 0, checkInBreathRate: 0,
 };
 
 function enter(state, now) {
@@ -184,18 +196,33 @@ function enter(state, now) {
 }
 const sessionActive = () =>
   ['noticing', 'inviting', 'guiding', 'releasing'].includes(scene.state);
+// A requested glance at heart rate and breath rate, or the 3-2-1 before a
+// session — a tap owns the screen either way.
+const interactive = () => ['checking-in', 'countdown'].includes(scene.state);
 
 function requestSession(now, announce) {
-  if (sessionActive()) return;
+  if (sessionActive() || interactive()) return;
   scene.dismissed = false;
   scene.progress = 0;
   enter(announce ? 'noticing' : 'inviting', now);
 }
 function dismiss(now) {
+  if (interactive()) { enter('resting', now); return; }
   if (!sessionActive() || scene.state === 'releasing') return;
   scene.dismissed = true;
   scene.releaseMs = CFG.dismissMs;
   enter('releasing', now);
+}
+// See BreathScene::handleTap: a tap from rest checks in; a second tap while
+// checking in starts a 3-2-1 into breathing. Anywhere else it's ignored.
+function handleTap(now) {
+  if (scene.state === 'resting') {
+    scene.checkInHeartRate = DEMO_HEART_RATE;
+    scene.checkInBreathRate = DEMO_BREATH_RATE;
+    enter('checking-in', now);
+  } else if (scene.state === 'checking-in') {
+    enter('countdown', now);
+  }
 }
 
 const guideTotal = () => (CFG.inhaleMs + CFG.exhaleMs) * CFG.breathCycles;
@@ -206,6 +233,8 @@ function buildTarget(now) {
   target.ringRadius = scene.field.ringRadius;
   let text = null, textOpacity = 0, wellRadius = CFG.wellRadius;
   let wantsProgress = 0, driftTarget = 1;
+  let displayHeartRate = 0, displayBreathRate = 0, vitalsOpacity = 0;
+  let heartbeatPulse = 0, countdownNumber = 0, countdownOpacity = 0;
 
   switch (scene.state) {
     case 'awakening': {
@@ -222,10 +251,16 @@ function buildTarget(now) {
     case 'resting':
     case 'sleeping': {
       const asleep = scene.state === 'sleeping';
+      const activation = asleep ? 0 : clamp01(scene.activationScore);
       const period = asleep ? 26000 : 16000;
       const breath = Math.sin(now * (2 * Math.PI / period));
-      const radius = asleep ? CFG.sleepCoreRadius : CFG.restCoreRadius;
-      const level = asleep ? CFG.sleepCoreLevel : CFG.restCoreLevel;
+      // The ember doesn't just warm as activation climbs — it visibly grows
+      // and brightens too, so the approach to a session is unmistakable well
+      // before one actually begins.
+      const radius = (asleep ? CFG.sleepCoreRadius : CFG.restCoreRadius) *
+                    (1 + CFG.restActivationGrowth * activation);
+      const level = (asleep ? CFG.sleepCoreLevel : CFG.restCoreLevel) *
+                   (1 + CFG.restActivationBrighten * activation);
       // Awake, the pulse is meant to be caught at a glance; asleep it stays
       // closer to imperceptible, since nobody's there to breathe with.
       const radiusDepth = asleep ? 0.16 : 0.32;
@@ -233,8 +268,60 @@ function buildTarget(now) {
       target.coreRadius = radius * (1 + radiusDepth * breath);
       target.coreLevel = level * (1 + levelDepth * breath);
       // A gentle warmth precursor to noticing — continuity, not an alert.
-      target.warmth = asleep ? 0
-                             : CFG.restActivationWarmth * clamp01(scene.activationScore);
+      target.warmth = asleep ? 0 : CFG.restActivationWarmth * activation;
+      break;
+    }
+    case 'checking-in': {
+      const fadeIn = ramp(t, 0, 500);
+      const fadeOut = ramp(t, CFG.checkInMs - 600, CFG.checkInMs);
+      const presence = fadeIn * (1 - fadeOut);
+
+      // A brightening pulse timed to each detected heartbeat — a rhythm of
+      // light standing in for a waveform we don't actually have.
+      let beat = 0;
+      if (scene.checkInHeartRate > 20 && scene.checkInHeartRate < 220) {
+        const periodMs = 60000 / scene.checkInHeartRate;
+        const phase = (t % periodMs) / periodMs;
+        beat = phase < 0.08 ? smoothstep(phase / 0.08) : Math.exp(-5 * (phase - 0.08));
+      }
+
+      target.coreRadius = CFG.checkInCoreRadius;
+      target.coreLevel = CFG.checkInCoreLevel * presence * (1 + 0.55 * beat);
+      target.ringRadius = mix(CFG.ringMinRadius, CFG.checkInCoreRadius + 46, presence);
+      target.ringLevel = 0.16 * presence * (1 + 0.35 * beat);
+      target.veilLevel = 0.03 * presence;
+
+      displayHeartRate = scene.checkInHeartRate;
+      displayBreathRate = scene.checkInBreathRate;
+      vitalsOpacity = presence;
+      heartbeatPulse = beat;
+      wellRadius = CFG.messageWellRadius;
+      driftTarget = 0;
+      break;
+    }
+    case 'countdown': {
+      const stepMs = CFG.countdownStepMs;
+      const stepIndex = Math.floor(t / stepMs);
+      const withinStep = t % stepMs;
+
+      // Continue from wherever the ring already was (check-in, or a direct
+      // tap-tap from rest) and ease toward the floor of the breath, so
+      // guidance picks it up smoothly with no reset.
+      const settle = ramp(t, 0, stepMs * 2.6);
+      target.ringRadius = mix(scene.field.ringRadius, CFG.ringMinRadius, settle);
+      target.ringInnerWidth = CFG.ringInnerWidth;
+      target.ringOuterWidth = CFG.ringOuterWidth;
+      target.ringLevel = mix(0.16, 0.40, settle);
+      target.veilLevel = mix(0.03, 0.05, settle);
+      target.coreLevel = 0;
+
+      // A quick, legible beat for each number — fast in, a solid hold, fast
+      // out — rather than the slow fade built for whole phrases.
+      const numberIn = ramp(withinStep, 0, 150);
+      const numberOut = ramp(withinStep, stepMs - 250, stepMs);
+      countdownNumber = stepIndex < 3 ? 3 - stepIndex : 0;
+      countdownOpacity = numberIn * (1 - numberOut);
+      driftTarget = 0;
       break;
     }
     case 'noticing': {
@@ -310,8 +397,11 @@ function buildTarget(now) {
     }
   }
 
+  // The light steps aside wherever there's something to read — a word, the
+  // check-in numbers, or a countdown digit.
+  const protectiveOpacity = Math.max(textOpacity, vitalsOpacity, countdownOpacity);
   target.wellRadius = wellRadius;
-  target.wellDepth = WELL_DEPTH * textOpacity;
+  target.wellDepth = WELL_DEPTH * protectiveOpacity;
   scene.drift += (driftTarget - scene.drift) * (1 / (1 + 260 / 40)) * 0.25;
   target.centerX = CENTER + scene.drift * 5 * Math.sin(now * 0.00017);
   target.centerY = CENTER + scene.drift * 4 * Math.sin(now * 0.000119 + 1.1);
@@ -319,6 +409,12 @@ function buildTarget(now) {
   scene.text = text;
   scene.textOpacity = textOpacity;
   scene.progressOpacity = wantsProgress;
+  scene.displayHeartRate = displayHeartRate;
+  scene.displayBreathRate = displayBreathRate;
+  scene.vitalsOpacity = vitalsOpacity;
+  scene.heartbeatPulse = heartbeatPulse;
+  scene.countdownNumber = countdownNumber;
+  scene.countdownOpacity = countdownOpacity;
   return target;
 }
 
@@ -363,6 +459,14 @@ function step(now) {
         enter('sleeping', now);
       break;
     case 'sleeping': if (scene.presence) enter('resting', now); break;
+    case 'checking-in': if (t >= CFG.checkInMs) enter('resting', now); break;
+    case 'countdown':
+      if (t >= CFG.countdownStepMs * 3) {
+        scene.dismissed = false;
+        scene.progress = 0;
+        enter('guiding', now);
+      }
+      break;
     case 'noticing': if (t >= CFG.noticeMs) enter('inviting', now); break;
     case 'inviting': if (t >= CFG.inviteMs) enter('guiding', now); break;
     case 'guiding':
@@ -431,6 +535,26 @@ function draw() {
     lines.forEach((line, i) => ctx.fillText(line, CENTER, top + i * 42));
     ctx.restore();
   }
+
+  // The check-in numbers and the countdown digits — never shown at once.
+  if (scene.vitalsOpacity > 0.004) {
+    const lines = [`${Math.round(scene.displayHeartRate)} bpm`,
+                   `${Math.round(scene.displayBreathRate)} / min`];
+    ctx.save();
+    ctx.font = '300 25px ui-rounded, "Avenir Next", system-ui, sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillStyle = `rgba(242,245,241,${0.91 * scene.vitalsOpacity})`;
+    ctx.letterSpacing = '3px';
+    lines.forEach((line, i) => ctx.fillText(line, CENTER, CENTER - 21 + i * 42));
+    ctx.restore();
+  } else if (scene.countdownOpacity > 0.004) {
+    ctx.save();
+    ctx.font = '300 30px ui-rounded, "Avenir Next", system-ui, sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillStyle = `rgba(242,245,241,${0.91 * scene.countdownOpacity})`;
+    ctx.fillText(String(scene.countdownNumber), CENTER, CENTER);
+    ctx.restore();
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -455,6 +579,7 @@ document.querySelector('.controls').addEventListener('click', event => {
   switch (button.dataset.act) {
     case 'notice': looping = false; requestSession(now, true); break;
     case 'manual': looping = false; requestSession(now, false); break;
+    case 'tap': looping = false; handleTap(now); break;
     case 'dismiss': dismiss(now); break;
     case 'sleep': scene.presence = false; scene.lastPresence = now - CFG.sleepAfterMs; break;
     case 'wake': scene.presence = true; break;

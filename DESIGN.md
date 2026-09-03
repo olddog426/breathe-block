@@ -12,8 +12,11 @@ looks in a screenshot. So the design starts from restraint:
 * At rest the display is **true black** with a single dim ember. On AMOLED,
   black pixels are off — the device disappears into the desk and draws almost
   nothing.
-* There are **no numbers, no graphs, no faces, no icons, no percentages**.
-  Nothing on screen can be read as a measurement of you.
+* Nothing appears on screen unasked. There are no ambient graphs, faces,
+  icons, or percentages. The one exception is numbers — heart rate and breath
+  rate — and only for the few seconds after you deliberately tap the glass to
+  ask for them; see §4a. It is a check-in you requested, not a readout the
+  device imposes.
 * Language is descriptive and reversible, never diagnostic: *your breathing has
   shifted*, never *stress detected*.
 * Nothing ever cuts. Every appearance, disappearance and state change is an
@@ -124,9 +127,44 @@ Two details that matter more than they look:
 * **A manually started session skips NOTICING.** If nothing was noticed, the
   device does not claim it noticed something — it goes straight to
   *breathe with me*.
-* **Any session can be dismissed** (BOOT button, or a touch once the touch
-  controller is wired). Dismissal goes to a short 2 s RELEASING with no closing
-  word. The device does not comment on being turned down.
+* **Any session can be dismissed** (BOOT button). Dismissal goes to a short
+  2 s RELEASING with no closing word. The device does not comment on being
+  turned down.
+
+### 4a. Checking in
+
+A tap on the glass is the one deliberate exception to "no numbers" — added
+because bringing awareness to your own signals, on request, is itself part of
+what the device is for. It only responds to a tap while RESTING; elsewhere a
+touch does nothing yet.
+
+```
+   RESTING
+      │ tap
+      ▼
+  CHECKING IN   6 s   heart rate and breath rate, averaged over a short
+      │                window so they read as "how am I doing," not an
+      │                instant sample. A soft pulse of light times itself
+      │ tap             to each detected heartbeat. Left alone, it fades
+      │                 back to RESTING on its own.
+      ▼
+  COUNTDOWN     3-2-1, one second each, continuing the same ring outward
+      │          into the shape guidance already uses.
+      ▼
+   GUIDING            straight into the breathing exercise — no
+                       "your breathing has shifted," because nothing was
+                       noticed; you asked for this.
+```
+
+A tap during CHECKING IN goes straight to COUNTDOWN and then GUIDING — it
+never announces a shift, since this session was self-started, same as a
+BOOT-button session. Dismissal (BOOT button) from either state returns
+straight to RESTING.
+
+The FT3168 capacitive controller is polled over I²C and reduced to exactly
+this one gesture: a tap (brief contact, little drift — see `TouchSensor.h`).
+Anything else — a hold, a swipe — is not yet a gesture this device
+recognises, and is ignored rather than guessed at.
 
 ### Presence, without saying so
 
@@ -136,14 +174,15 @@ glance rather than needing to be sought out. No words, no numbers, no
 indication that anything is being measured — it is the difference between an
 object that is on and an object that is present.
 
-The ember also carries one more signal, just as wordlessly: a gentle warmth
-that tracks the detector's own smoothed, baseline-relative activation score —
-0 at your seated baseline, rising toward the same threshold that would
-eventually start a session. Not raw heart rate, and deliberately not alarm
-language or an alert colour: the score only moves with a genuine sustained
-shift, so it cannot flicker on an ordinary momentary blip, and by the time a
-session actually begins the ember has already been quietly responding rather
-than snapping into a warning state.
+The ember also carries one more signal, just as wordlessly: it visibly grows
+and brightens as the detector's own smoothed, baseline-relative activation
+score climbs — 0 at your seated baseline, rising toward the same threshold
+that would eventually start a session, so the approach is unmistakable well
+before a session actually begins. Not raw heart rate, and deliberately not
+alarm language or an alert colour: the score only moves with a genuine
+sustained shift, so it cannot flicker on an ordinary momentary blip, and the
+ember has already been quietly responding rather than snapping into a warning
+state.
 
 ## 5. Verbal design
 
@@ -157,6 +196,11 @@ than snapping into a warning state.
 
 Everything is lowercase and letter-spaced. All five strings live in one block of
 `AppConfig.h` so the product voice can be retuned without touching the interface.
+
+Checking in shows two numbers instead of a word — heart rate and breath rate —
+and the countdown shows a single digit. Both use the same well-protected,
+never-cross-dissolved treatment as the word label, so they hold the same
+stillness even though what's on screen is a number rather than a phrase.
 
 ## 6. Rendering architecture
 
@@ -197,4 +241,10 @@ different times:
 3. **Demo mode on the device** — `DemoMode::Tour` walks the entire state flow on
    a loop with a simulated radar; `DemoMode::Manual` steps scenes from the BOOT
    button; a single-character serial console jumps to any state, forces a
-   simulated activation, and prints frame timings.
+   simulated activation, simulates a tap (`c`, no touch hardware needed), and
+   prints frame timings.
+
+Note: the FT3168's register map (`TouchSensor.cpp`) follows the common
+FocalTech FT5x06-family layout but hasn't been checked against the FT3168's
+own datasheet line by line — expect it to need a round of on-device tuning
+the first time a tap is tried on real hardware.

@@ -38,6 +38,8 @@ const char* stateName(SceneState state) {
     case SceneState::Awakening: return "awakening";
     case SceneState::Resting: return "resting";
     case SceneState::Sleeping: return "sleeping";
+    case SceneState::CheckingIn: return "checking-in";
+    case SceneState::Countdown: return "countdown";
     case SceneState::Noticing: return "noticing";
     case SceneState::Inviting: return "inviting";
     case SceneState::Guiding: return "guiding";

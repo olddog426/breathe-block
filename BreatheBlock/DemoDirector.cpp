@@ -35,6 +35,8 @@ void DemoDirector::printHelp() const {
       "\nBreathe Block console\n"
       "  n  a noticed session (starts with \"your breathing has shifted\")\n"
       "  m  a session you started yourself (skips that line)\n"
+      "  c  simulate a tap (no touch hardware needed) — twice: check in,\n"
+      "     then a 3-2-1 into breathing\n"
       "  x  dismiss the current session\n"
       "  r  return to the quiet state\n"
       "  s  sleep      w  wake\n"
@@ -95,6 +97,10 @@ void DemoDirector::handleSerial(uint32_t nowMs) {
         announce("self-started session");
         ui_.startSession(nowMs, false);
         engine_.noteSessionStarted(nowMs);
+        break;
+      case 'c':
+        announce("simulated tap");
+        ui_.handleTap(nowMs);
         break;
       case 'x':
         announce("dismissed");

@@ -16,6 +16,7 @@
 #include "DemoDirector.h"
 #include "RadarSensor.h"
 #include "StressEngine.h"
+#include "TouchSensor.h"
 
 namespace {
 constexpr int kDisplayEnablePin = 42;
@@ -45,6 +46,7 @@ StressEngineConfig makeStressConfig() {
 StressEngine stressEngine(makeStressConfig());
 BreathingUI ui;
 DemoDirector demo(ui, radar, stressEngine);
+TouchSensor touch;
 
 lv_display_t* lvDisplay = nullptr;
 lv_color_t* drawBuffer1 = nullptr;
@@ -142,6 +144,9 @@ void setup() {
               BreatheBlockConfig::kRadarPrimaryBaud,
               BreatheBlockConfig::kRadarFallbackBaud);
 
+  touch.begin(PIN_NUM_TOUCH_SDA, PIN_NUM_TOUCH_SCL, I2C_ADDR_FT3168,
+              I2C_FREQUENCY);
+
   Serial.printf("Radar: %s\n", BreatheBlockConfig::kUseSimulatedRadar
                                    ? "simulated"
                                    : "live");
@@ -162,6 +167,8 @@ void loop() {
   ui.setActivation(assessment.activationScore);
   ui.setLiveBreathPhase(signs.breathPhase, signs.breathPhaseFresh, nowMs);
   ui.setTestingVitals(signs.heartRate, signs.breathRate);
+  ui.setVitals(signs.heartRate, signs.breathRate, nowMs);
+  if (touch.pollTap(nowMs)) ui.handleTap(nowMs);
   ui.update(nowMs);
   ui.consumeSessionFinished();
 
