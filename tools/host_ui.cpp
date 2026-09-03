@@ -165,6 +165,7 @@ int main(int argc, char** argv) {
 
   size_t next = 0;
   bool requested = false;
+  bool tappedIntoGuiding = false;
   bool tappedFirst = false;
   bool tappedSecond = false;
   const uint32_t endMs = moments.back().atMs + 2000;
@@ -173,6 +174,12 @@ int main(int argc, char** argv) {
     if (!requested && hostNowMs >= sessionAtMs) {
       requested = true;
       ui.startSession(hostNowMs, true);
+    }
+    // Inviting waits for a tap rather than starting itself; answer it once
+    // the ring has had time to settle.
+    if (!tappedIntoGuiding && hostNowMs >= guideAtMs) {
+      tappedIntoGuiding = true;
+      ui.handleTap(hostNowMs);
     }
     // A plausible steady reading, so the check-in demo frame has numbers to
     // show and the heartbeat pulse has a real rhythm.

@@ -17,9 +17,14 @@ const port = script.split('// Drawing')[0].split(
 const driver = `
 scene.lastAt = 0; scene.stateAt = 0; scene.lastPresence = 0;
 let requested = false;
+let tapped = false;
 const rows = [];
 for (let now = 40; now <= 90000; now += 40) {
   if (!requested && now >= 20000) { requested = true; requestSession(now, true); }
+  // Inviting waits for a tap rather than starting itself; answer it once the
+  // ring has had a couple of seconds to settle, so the timeline still
+  // exercises guiding and releasing too.
+  if (!tapped && now >= 27200) { tapped = true; handleTap(now); }
   step(now);
   if (now % 400 === 0) {
     const f = scene.field;

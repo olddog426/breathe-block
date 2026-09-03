@@ -55,10 +55,13 @@ int main() {
   setvbuf(stdout, nullptr, _IONBF, 0);
   const SceneConfig config;
   const uint32_t sessionAtMs = 20000;
+  // Inviting waits for a tap rather than starting itself; answer it once the
+  // ring has had a couple of seconds to settle.
+  const uint32_t tapAtMs = sessionAtMs + config.noticeMs + 2000;
   const uint32_t guideTotalMs =
       (config.inhaleMs + config.exhaleMs) * config.breathCycles;
-  const uint32_t endMs = sessionAtMs + config.noticeMs + config.inviteMs +
-                         guideTotalMs + config.releaseMs + 20000;
+  const uint32_t endMs =
+      tapAtMs + guideTotalMs + config.releaseMs + 20000;
 
   BreathScene scene(config);
   scene.begin(0);
@@ -77,6 +80,7 @@ int main() {
   sequence += name(lastState);
 
   bool requested = false;
+  bool tapped = false;
   bool sawShifted = false, sawInvite = false, sawInhale = false,
        sawExhale = false, sawSettled = false;
   uint32_t guidingFromMs = 0;
@@ -86,6 +90,10 @@ int main() {
     if (!requested && now >= sessionAtMs) {
       requested = true;
       scene.requestSession(now, true);
+    }
+    if (!tapped && now >= tapAtMs) {
+      tapped = true;
+      scene.handleTap(now);
     }
     scene.update(at(now));
     const SceneOutput& out = scene.output();
@@ -403,6 +411,64 @@ int main() {
     cancel.dismiss(3080);
     cancel.update(at(3120));
     assert(cancel.state() == SceneState::Resting);
+  }
+
+  // An early tap — while "breathe with me" is still on screen — must not cut
+  // the word off mid-visibility: it's deferred and honoured once the word
+  // has genuinely cleared.
+  {
+    BreathScene early(config);
+    early.begin(0);
+    for (uint32_t now = kStepMs; now <= 3000; now += kStepMs)
+      early.update(at(now));
+    early.requestSession(3000, true);
+
+    SceneText shownText = SceneText::None;
+    float shownOpacity = 0.0f;
+    bool tapped = false;
+    const uint32_t inviteAtMs = 3000 + config.noticeMs;
+    for (uint32_t now = 3040; now <= inviteAtMs + 6000; now += kStepMs) {
+      // Tap right as the invitation begins, when "breathe with me" is about
+      // to be at its most visible — the worst case for cutting it short.
+      if (!tapped && now >= inviteAtMs + 100) {
+        tapped = true;
+        early.handleTap(now);
+      }
+      early.update(at(now));
+      const SceneOutput& out = early.output();
+      if (out.text != shownText) {
+        assert(shownOpacity <= 0.0001f &&
+               "an early tap cut the invitation off mid-visibility");
+        shownText = out.text;
+      }
+      shownOpacity = out.textOpacity;
+    }
+    assert(early.state() == SceneState::Guiding &&
+           "a deferred tap must still be honoured once the word clears");
+  }
+
+  // Left entirely alone, an invitation nobody answers withdraws quietly —
+  // no closing word, same as a session turned down — rather than waiting
+  // forever or starting itself.
+  {
+    BreathScene unanswered(config);
+    unanswered.begin(0);
+    for (uint32_t now = kStepMs; now <= 3000; now += kStepMs)
+      unanswered.update(at(now));
+    unanswered.requestSession(3000, false);  // straight to Inviting
+    unanswered.update(at(3040));
+    assert(unanswered.state() == SceneState::Inviting);
+
+    bool settled = false;
+    for (uint32_t now = 3080;
+         now <= 3040 + config.inviteTimeoutMs + config.releaseMs + 2000;
+         now += kStepMs) {
+      unanswered.update(at(now));
+      if (unanswered.output().text == SceneText::Settled) settled = true;
+    }
+    assert(!settled && "an unanswered invitation should not comment on itself");
+    assert(unanswered.state() == SceneState::Resting &&
+           "an unanswered invitation should quietly return to rest");
   }
 
   printf("breath scene: ok\n");

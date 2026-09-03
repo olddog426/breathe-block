@@ -39,6 +39,10 @@ struct SceneConfig {
   uint32_t awakenMs = 2600;
   uint32_t noticeMs = 5200;
   uint32_t inviteMs = 3400;
+  // The invitation doesn't start itself: it forms, settles, and waits for a
+  // tap. If it waits this long unanswered, it withdraws quietly rather than
+  // starting on its own — same as a session that was turned down.
+  uint32_t inviteTimeoutMs = 24000;
   uint32_t releaseMs = 4600;
   uint32_t dismissMs = 2000;
   uint32_t sleepAfterMs = 180000;
@@ -164,6 +168,7 @@ class BreathScene {
 
  private:
   void enter(SceneState state, uint32_t nowMs);
+  void beginGuidingFromInvite(uint32_t nowMs);
   uint32_t elapsed(uint32_t nowMs) const;
   void buildTarget(const SceneInput& input, BreathField* target);
   void approach(BreathField* current, const BreathField& target, float dtMs);
@@ -193,6 +198,10 @@ class BreathScene {
   // snapshot without needing its own copy of SceneInput.
   float lastDisplayHeartRate_ = 0.0f;
   float lastDisplayBreathRate_ = 0.0f;
+  // A tap answering the invitation before "breathe with me" has safely
+  // cleared can't take effect immediately — see handleTap — so it waits
+  // here and is honoured the moment the word is gone.
+  bool tapPending_ = false;
   bool started_ = false;
   bool dismissed_ = false;
   bool sessionFinished_ = false;

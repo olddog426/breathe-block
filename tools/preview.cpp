@@ -113,11 +113,19 @@ int main(int argc, char** argv) {
 
   scene.begin(0);
   bool requested = false;
+  bool tapped = false;
+  const uint32_t tapAtMs = sessionAtMs + config.noticeMs + 2000;
   for (uint32_t now = 0; now <= 80000 && next < moments.size();
        now += kStepMs) {
     if (!requested && now >= sessionAtMs) {
       requested = true;
       scene.requestSession(now, true);
+    }
+    // Inviting waits for a tap rather than starting itself; answer it once
+    // the ring has had a couple of seconds to settle.
+    if (!tapped && now >= tapAtMs) {
+      tapped = true;
+      scene.handleTap(now);
     }
 
     SceneInput input;

@@ -46,4 +46,8 @@ class DemoDirector {
   bool buttonDown_ = false;
   uint32_t buttonPressedAtMs_ = 0;
   uint8_t paletteIndex_ = 0;
+  // Inviting waits for a tap rather than starting itself, so the tour
+  // schedules one of its own a couple of seconds in, rather than sitting
+  // there for the full inviteTimeoutMs. 0 = none pending.
+  uint32_t pendingTapAtMs_ = 0;
 };

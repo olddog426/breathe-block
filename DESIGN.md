@@ -105,9 +105,10 @@ its smallest.
       └────┬─────┘                                                          │
            │                                                                │
       ┌────▼─────┐                                                          │
-      │ INVITING │  3.4 s  horizon hands its radius to the contour,         │◀┘
-      │          │         "breathe with me", contour settles to the floor
-      └────┬─────┘
+      │ INVITING │  horizon hands its radius to the contour, "breathe       │◀┘
+      │          │  with me", contour settles — then waits. A tap begins;
+      │          │  left unanswered 24 s, it withdraws quietly instead.
+      └────┬─────┘  tap
            │
       ┌────▼─────┐
       │ GUIDING  │  5 × (4 s in / 6 s out).  Words for the first two cycles,
@@ -127,6 +128,11 @@ Two details that matter more than they look:
 * **A manually started session skips NOTICING.** If nothing was noticed, the
   device does not claim it noticed something — it goes straight to
   *breathe with me*.
+* **INVITING doesn't start itself.** The invitation forms, settles, and
+  waits — a tap begins it. This applies whether the invitation was noticed
+  by the radar or started by hand: either way, the device offers, it
+  doesn't insist. Left unanswered for 24 s, it withdraws quietly at the
+  same unhurried pace as a completed session, with no closing word.
 * **Any session can be dismissed** (BOOT button). Dismissal goes to a short
   2 s RELEASING with no closing word. The device does not comment on being
   turned down.
@@ -135,8 +141,8 @@ Two details that matter more than they look:
 
 A tap on the glass is the one deliberate exception to "no numbers" — added
 because bringing awareness to your own signals, on request, is itself part of
-what the device is for. It only responds to a tap while RESTING; elsewhere a
-touch does nothing yet.
+what the device is for. RESTING and INVITING are the two states that respond
+to a tap (see §4 above for INVITING); elsewhere a touch does nothing yet.
 
 ```
    RESTING
@@ -148,7 +154,7 @@ touch does nothing yet.
       │ tap             to each detected heartbeat. Left alone, it fades
       │                 back to RESTING on its own.
       ▼
-  COUNTDOWN     3-2-1, one second each, continuing the same ring outward
+  COUNTDOWN     3-2-1, a soft breath each, continuing the same ring outward
       │          into the shape guidance already uses.
       ▼
    GUIDING            straight into the breathing exercise — no

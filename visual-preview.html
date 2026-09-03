@@ -116,7 +116,7 @@ function buildLut(field, palette) {
 // ---------------------------------------------------------------------------
 const CFG = {
   inhaleMs: 4000, exhaleMs: 6000, breathCycles: 5,
-  awakenMs: 2600, noticeMs: 5200, inviteMs: 3400,
+  awakenMs: 2600, noticeMs: 5200, inviteMs: 3400, inviteTimeoutMs: 24000,
   releaseMs: 4600, dismissMs: 2000, sleepAfterMs: 180000,
   checkInMs: 6000, countdownStepMs: 1000,
   restCoreRadius: 38, restCoreLevel: 0.16,
@@ -133,6 +133,13 @@ const CFG = {
 };
 const GEOMETRY_TAU = 110, LEVEL_TAU = 260, WARMTH_TAU = 340;
 const INVISIBLE = 0.02, WORD_FADE = 800, WORD_GAP = 220, WELL_DEPTH = 0.9;
+// "breathe with me" is fully gone by this point into Inviting (see its case
+// in buildTarget). The gate a tap must wait for sits a little past that —
+// wordEnvelope only reaches exactly zero *at* INVITE_WORD_CLEAR_MS, and
+// step() checks state before rebuilding the frame, so a gate at that exact
+// instant could still skip over the one frame that would have rendered the
+// true zero. The margin guarantees that frame happens first.
+const INVITE_WORD_CLEAR_MS = 3000, INVITE_TAP_GATE_MS = INVITE_WORD_CLEAR_MS + 200;
 
 const TEXT = {
   shifted: 'your breathing\nhas shifted',
@@ -181,9 +188,16 @@ const scene = {
   // Snapshot at the moment a tap requests a check-in, so it holds still
   // while you read it.
   checkInHeartRate: 0, checkInBreathRate: 0,
+  // A tap answering the invitation before "breathe with me" has safely
+  // cleared can't take effect immediately — see handleTap — so it waits
+  // here and is honoured the moment the word is gone.
+  tapPending: false,
 };
 
 function enter(state, now) {
+  // Only meaningful while actively in Inviting; leaving it any other way
+  // (dismissed, or answered already) must not let a stale tap fire later.
+  if (scene.state === 'inviting' && state !== 'guiding') scene.tapPending = false;
   if (state === 'releasing') {
     scene.releaseRing = scene.field.ringRadius;
     scene.releaseLevel = scene.field.ringLevel;
@@ -193,6 +207,13 @@ function enter(state, now) {
   }
   scene.state = state;
   scene.stateAt = now;
+}
+
+function beginGuidingFromInvite(now) {
+  scene.tapPending = false;
+  scene.dismissed = false;
+  scene.progress = 0;
+  enter('guiding', now);
 }
 const sessionActive = () =>
   ['noticing', 'inviting', 'guiding', 'releasing'].includes(scene.state);
@@ -214,7 +235,8 @@ function dismiss(now) {
   enter('releasing', now);
 }
 // See BreathScene::handleTap: a tap from rest checks in; a second tap while
-// checking in starts a 3-2-1 into breathing. Anywhere else it's ignored.
+// checking in starts a 3-2-1 into breathing; a tap while an invitation is
+// held answers it and begins. Anywhere else it's ignored.
 function handleTap(now) {
   if (scene.state === 'resting') {
     scene.checkInHeartRate = DEMO_HEART_RATE;
@@ -222,6 +244,14 @@ function handleTap(now) {
     enter('checking-in', now);
   } else if (scene.state === 'checking-in') {
     enter('countdown', now);
+  } else if (scene.state === 'inviting') {
+    if (now - scene.stateAt >= INVITE_TAP_GATE_MS) {
+      beginGuidingFromInvite(now);
+    } else {
+      // "breathe with me" is still on screen: begin the moment it clears
+      // (see step()) rather than cutting it off mid-visibility.
+      scene.tapPending = true;
+    }
   }
 }
 
@@ -315,10 +345,12 @@ function buildTarget(now) {
       target.veilLevel = mix(0.03, 0.05, settle);
       target.coreLevel = 0;
 
-      // A quick, legible beat for each number — fast in, a solid hold, fast
-      // out — rather than the slow fade built for whole phrases.
-      const numberIn = ramp(withinStep, 0, 150);
-      const numberOut = ramp(withinStep, stepMs - 250, stepMs);
+      // A soft breath for each number, its fall finishing well before the
+      // step ends so there's a real span of true-zero opacity for the
+      // content swap to land in — see BreathScene.cpp for why that margin
+      // matters.
+      const numberIn = ramp(withinStep, 0, 300);
+      const numberOut = ramp(withinStep, 550, 850);
       countdownNumber = stepIndex < 3 ? 3 - stepIndex : 0;
       countdownOpacity = numberIn * (1 - numberOut);
       driftTarget = 0;
@@ -341,13 +373,16 @@ function buildTarget(now) {
     case 'inviting': {
       const form = ramp(t, 0, 900), settle = ramp(t, 1900, CFG.inviteMs);
       target.ringRadius = mix(mix(172, 148, form), CFG.ringMinRadius, settle);
-      target.ringLevel = 0.42 * form;
-      target.veilLevel = 0.055 * form;
+      // A held invitation waits for a tap and isn't allowed to look frozen
+      // while it does: a faint shimmer keeps it reading as alive.
+      const shimmer = 1 + 0.05 * Math.sin(now * 0.0009);
+      target.ringLevel = 0.42 * form * shimmer;
+      target.veilLevel = 0.055 * form * shimmer;
       target.ringInnerWidth = CFG.ringInnerWidth;
       target.ringOuterWidth = CFG.ringOuterWidth;
       target.coreLevel = 0;
       text = TEXT.invite;
-      textOpacity = wordEnvelope(t, 500, 3000);
+      textOpacity = wordEnvelope(t, 500, INVITE_WORD_CLEAR_MS);
       wellRadius = CFG.messageWellRadius;
       driftTarget = 0;
       break;
@@ -468,7 +503,18 @@ function step(now) {
       }
       break;
     case 'noticing': if (t >= CFG.noticeMs) enter('inviting', now); break;
-    case 'inviting': if (t >= CFG.inviteMs) enter('guiding', now); break;
+    case 'inviting':
+      // Waits for a tap (see handleTap) rather than starting on its own; an
+      // unanswered invitation withdraws quietly, no closing word, but at the
+      // same unhurried pace as a completed session — nothing was refused.
+      if (scene.tapPending && t >= INVITE_TAP_GATE_MS) {
+        beginGuidingFromInvite(now);
+      } else if (t >= CFG.inviteTimeoutMs) {
+        scene.dismissed = true;
+        scene.releaseMs = CFG.releaseMs;
+        enter('releasing', now);
+      }
+      break;
     case 'guiding':
       if (t >= guideTotal()) { scene.releaseMs = CFG.releaseMs; enter('releasing', now); }
       break;
@@ -561,11 +607,15 @@ function draw() {
 // Controls
 // ---------------------------------------------------------------------------
 const readout = document.getElementById('readout');
+// Inviting now waits for a tap rather than starting itself (see handleTap),
+// so the automated tour answers its own invitation a couple of seconds after
+// the ring settles — otherwise it would just sit there for inviteTimeoutMs.
+let pendingTapAt = 0;
 const tour = [
   { gapMs: 6000, run: now => {} },
-  { gapMs: 500, run: now => requestSession(now, true) },
+  { gapMs: 500, run: now => { requestSession(now, true); pendingTapAt = now + CFG.noticeMs + 2000; } },
   { gapMs: 4000, run: now => {} },
-  { gapMs: 500, run: now => requestSession(now, false) },
+  { gapMs: 500, run: now => { requestSession(now, false); pendingTapAt = now + 2000; } },
   { gapMs: 4000, run: now => {} },
   { gapMs: 7000, run: now => { scene.presence = false; scene.lastPresence = now - CFG.sleepAfterMs; } },
   { gapMs: 5000, run: now => { scene.presence = true; } },
@@ -604,6 +654,7 @@ function frame(now) {
   } else if (looping) {
     tourAt = now;
   }
+  if (pendingTapAt && now >= pendingTapAt) { pendingTapAt = 0; handleTap(now); }
   step(now);
   draw();
   readout.textContent = scene.state +

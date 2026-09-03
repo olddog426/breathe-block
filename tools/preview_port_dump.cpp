@@ -8,10 +8,18 @@ int main() {
   BreathScene scene;
   scene.begin(0);
   bool requested = false;
+  bool tapped = false;
   for (uint32_t now = 40; now <= 90000; now += 40) {
     if (!requested && now >= 20000) {
       requested = true;
       scene.requestSession(now, true);
+    }
+    // Inviting waits for a tap rather than starting itself; answer it once
+    // the ring has had a couple of seconds to settle, so the timeline still
+    // exercises Guiding and Releasing too.
+    if (!tapped && now >= 27200) {
+      tapped = true;
+      scene.handleTap(now);
     }
     SceneInput input;
     input.nowMs = now;

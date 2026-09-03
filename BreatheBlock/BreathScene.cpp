@@ -24,6 +24,19 @@ constexpr float kWordFadeMs = 800.0f;
 constexpr float kWordGapMs = 220.0f;
 constexpr float kWellDepth = 0.9f;
 
+// "breathe with me" is fully gone by this point into Inviting (see its case
+// in buildTarget). A tap answering the invitation can't take effect before
+// this — see BreathScene::handleTap — because the word would be cut off
+// mid-visibility instead of finishing its own fade first.
+constexpr float kInviteWordClearMs = 3000.0f;
+// The gate itself waits a little past that: wordEnvelope only reaches
+// exactly zero *at* kInviteWordClearMs, and update() checks state before it
+// rebuilds the frame, so a gate set to the exact same instant could still
+// fire on the one frame that would have rendered that exact zero, skipping
+// over it. A small margin guarantees at least one frame of true, rendered
+// zero opacity happens first.
+constexpr float kInviteTapGateMs = kInviteWordClearMs + 200.0f;
+
 float clamp01(float value) {
   if (!(value > 0.0f)) return 0.0f;
   if (value > 1.0f) return 1.0f;
@@ -72,6 +85,11 @@ void BreathScene::begin(uint32_t nowMs) {
 }
 
 void BreathScene::enter(SceneState state, uint32_t nowMs) {
+  // Only meaningful while actively in Inviting; leaving it any other way
+  // (dismissed, or answered already) must not let a stale tap fire later.
+  if (state_ == SceneState::Inviting && state != SceneState::Guiding) {
+    tapPending_ = false;
+  }
   if (state == SceneState::Releasing) {
     releaseRingRadius_ = output_.field.ringRadius;
     releaseRingLevel_ = output_.field.ringLevel;
@@ -124,6 +142,13 @@ void BreathScene::dismiss(uint32_t nowMs) {
   enter(SceneState::Releasing, nowMs);
 }
 
+void BreathScene::beginGuidingFromInvite(uint32_t nowMs) {
+  tapPending_ = false;
+  dismissed_ = false;
+  progressValue_ = 0.0f;
+  enter(SceneState::Guiding, nowMs);
+}
+
 void BreathScene::handleTap(uint32_t nowMs) {
   if (state_ == SceneState::Resting) {
     checkInHeartRate_ = lastDisplayHeartRate_;
@@ -131,6 +156,14 @@ void BreathScene::handleTap(uint32_t nowMs) {
     enter(SceneState::CheckingIn, nowMs);
   } else if (state_ == SceneState::CheckingIn) {
     enter(SceneState::Countdown, nowMs);
+  } else if (state_ == SceneState::Inviting) {
+    if (elapsed(nowMs) >= kInviteTapGateMs) {
+      beginGuidingFromInvite(nowMs);
+    } else {
+      // "breathe with me" is still on screen: begin the moment it clears
+      // (see update()) rather than cutting it off mid-visibility.
+      tapPending_ = true;
+    }
   }
   // Elsewhere, a tap isn't a gesture this device recognises yet — ignored
   // rather than guessed at.
@@ -193,8 +226,17 @@ void BreathScene::update(const SceneInput& input) {
       }
       break;
     case SceneState::Inviting:
-      if (elapsed(input.nowMs) >= config_.inviteMs) {
-        enter(SceneState::Guiding, input.nowMs);
+      // Waits for a tap (see handleTap) rather than starting on its own. An
+      // invitation nobody answers withdraws quietly instead of forcing the
+      // exercise on you — no closing word, like a session you turned down,
+      // but at the same unhurried pace as a completed one: nothing was
+      // refused, so there's no reason to hurry it away.
+      if (tapPending_ && elapsed(input.nowMs) >= kInviteTapGateMs) {
+        beginGuidingFromInvite(input.nowMs);
+      } else if (elapsed(input.nowMs) >= config_.inviteTimeoutMs) {
+        dismissed_ = true;
+        releaseDurationMs_ = config_.releaseMs;
+        enter(SceneState::Releasing, input.nowMs);
       }
       break;
     case SceneState::Guiding:
@@ -350,12 +392,19 @@ void BreathScene::buildTarget(const SceneInput& input, BreathField* target) {
       target->veilLevel = mix(0.03f, 0.05f, settle);
       target->coreLevel = 0.0f;
 
-      // A quick, legible beat for each number — fast in, a solid hold, fast
-      // out — rather than the slow fade built for whole phrases.
+      // A soft breath for each number: an easy rise, a hold, an easy fall —
+      // and, crucially, the fall finishes well before the step ends, leaving
+      // a real span of true-zero opacity rather than one that only reaches
+      // zero in the same instant the digit changes. `withinStep` wraps to 0
+      // exactly when the next digit begins, so a fade that only reached zero
+      // *at* stepLen would never actually be observed at zero while this
+      // digit was still the one showing — the swap-only-while-invisible
+      // label (see BreathingUI::applyNumberDisplay) would then need to catch
+      // a window a couple of milliseconds wide, which real frame timing can
+      // easily miss, and the digit would appear stuck.
       const float stepT = static_cast<float>(withinStep);
-      const float stepLen = static_cast<float>(stepMs);
-      const float numberIn = ramp(stepT, 0.0f, 150.0f);
-      const float numberOut = ramp(stepT, stepLen - 250.0f, stepLen);
+      const float numberIn = ramp(stepT, 0.0f, 300.0f);
+      const float numberOut = ramp(stepT, 550.0f, 850.0f);
       countdownNumber =
           stepIndex < 3 ? static_cast<uint8_t>(3 - stepIndex) : 0;
       countdownOpacity = numberIn * (1.0f - numberOut);
@@ -389,8 +438,12 @@ void BreathScene::buildTarget(const SceneInput& input, BreathField* target) {
       const float settle = ramp(t, 1900.0f, static_cast<float>(c.inviteMs));
       target->ringRadius = mix(mix(172.0f, 148.0f, form), c.ringMinRadius,
                                settle);
-      target->ringLevel = 0.42f * form;
-      target->veilLevel = 0.055f * form;
+      // A held invitation can wait a while for its tap, and isn't allowed to
+      // look frozen while it does: a faint shimmer, the same idea as the
+      // ring's during guidance, keeps it reading as alive rather than stuck.
+      const float shimmer = 1.0f + 0.05f * sinf(now * 0.0009f);
+      target->ringLevel = 0.42f * form * shimmer;
+      target->veilLevel = 0.055f * form * shimmer;
       // Hand over to guidance at exactly the edge softness the floor of the
       // breath uses, so the first inhale continues the same shape.
       target->ringInnerWidth = c.ringInnerWidth;
@@ -398,7 +451,7 @@ void BreathScene::buildTarget(const SceneInput& input, BreathField* target) {
       target->coreLevel = 0.0f;
 
       text = SceneText::BreatheWithMe;
-      textOpacity = wordEnvelope(t, 500.0f, 3000.0f);
+      textOpacity = wordEnvelope(t, 500.0f, kInviteWordClearMs);
       wellRadius = c.messageWellRadius;
       driftTarget = 0.0f;
       break;

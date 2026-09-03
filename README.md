@@ -11,10 +11,13 @@ rate and breath rate for a few seconds before fading back to quiet.
 first; this file is how to run it.
 
 At rest the display is true black with a single dim ember. When the radar sees
-a sustained shift relative to your own seated baseline, a glow blooms at the
-rim, says *your breathing has shifted*, then *breathe with me*, then guides
-five four-second inhales and six-second exhales before dissolving back to
-black. Nothing on screen ever steps or cuts; a regression test asserts it.
+a sustained shift relative to your own seated baseline, the ember visibly
+grows and brightens, then a glow blooms at the rim and says *your breathing
+has shifted*, then *breathe with me* — and waits. A tap begins it: five
+four-second inhales and six-second exhales before dissolving back to black.
+Left unanswered for 24 seconds, the invitation withdraws quietly instead of
+starting on its own. Nothing on screen ever steps or cuts; a regression test
+asserts it.
 
 ## Seeing it, in order of how little you need
 

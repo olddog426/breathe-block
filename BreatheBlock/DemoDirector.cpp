@@ -155,6 +155,10 @@ void DemoDirector::runTour(uint32_t nowMs) {
       announce("tour: a noticed session");
       ui_.startSession(nowMs, true);
       engine_.noteSessionStarted(nowMs);
+      // Inviting waits for a tap; the tour answers its own a couple of
+      // seconds after the invitation would have settled.
+      pendingTapAtMs_ =
+          nowMs + ui_.scene().config().noticeMs + 2000;
       break;
     case TourStep::Breathe:
       announce("tour: back to quiet");
@@ -163,6 +167,7 @@ void DemoDirector::runTour(uint32_t nowMs) {
       announce("tour: a session you started yourself");
       ui_.startSession(nowMs, false);
       engine_.noteSessionStarted(nowMs);
+      pendingTapAtMs_ = nowMs + 2000;
       break;
     case TourStep::Drift:
       announce("tour: quiet again");
@@ -183,6 +188,13 @@ void DemoDirector::runTour(uint32_t nowMs) {
 void DemoDirector::update(uint32_t nowMs) {
   handleButton(nowMs);
   if (BreatheBlockConfig::kSerialConsole) handleSerial(nowMs);
+  if (pendingTapAtMs_ != 0 && nowMs >= pendingTapAtMs_) {
+    pendingTapAtMs_ = 0;
+    // Only if the invitation is still the one waiting — it may already have
+    // been dismissed (BOOT button, or the tour stopped) by the time this
+    // fires, and a tap means something different in every other state.
+    if (ui_.state() == SceneState::Inviting) ui_.handleTap(nowMs);
+  }
   if (!tourRunning_) return;
 
   // A session always plays out in full; the tour only fills the gaps between.
