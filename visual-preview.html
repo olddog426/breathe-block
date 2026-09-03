@@ -1,481 +1,484 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>BreatheBlock alert and breathing preview</title>
-  <style>
-    :root {
-      color-scheme: dark;
-      --page: #171a18;
-      --screen: #050706;
-      --sage: #b8ccbc;
-      --sage-soft: #91aa98;
-      --text: #e7ede7;
-      --muted: #9eaaa0;
-      --control: #282d29;
-      --control-hover: #343a35;
-    }
-
-    * { box-sizing: border-box; }
-
-    body {
-      min-height: 100vh;
-      margin: 0;
-      display: grid;
-      place-items: center;
-      padding: 24px;
-      background: var(--page);
-      color: var(--text);
-      font-family: ui-rounded, "Avenir Next", system-ui, sans-serif;
-    }
-
-    .preview {
-      width: min(100%, 560px);
-      display: grid;
-      justify-items: center;
-      gap: 22px;
-    }
-
-    .display {
-      position: relative;
-      width: min(82vw, 466px);
-      aspect-ratio: 1;
-      overflow: hidden;
-      border-radius: 50%;
-      background: var(--screen);
-      box-shadow: 0 28px 90px #0009, inset 0 0 0 1px #ffffff0a;
-    }
-
-    .display svg {
-      display: block;
-      width: 100%;
-      height: 100%;
-    }
-
-    .wash {
-      fill: color-mix(in srgb, var(--sage-soft) 10%, transparent);
-    }
-
-    .edge-glow,
-    .edge-pulse {
-      fill: none;
-      transform-origin: center;
-      opacity: 0;
-    }
-
-    .edge-glow {
-      stroke: var(--sage-soft);
-      stroke-width: 12;
-      filter: blur(8px);
-    }
-
-    .edge-pulse {
-      stroke: var(--sage);
-      stroke-width: 1.2;
-    }
-
-    .edge-glow.is-active {
-      animation: edge-glow 2.4s ease-in-out infinite;
-    }
-
-    .edge-pulse.is-active {
-      animation: edge-pulse 2.4s ease-in-out infinite;
-    }
-
-    .echo,
-    .contour {
-      fill: none;
-      vector-effect: non-scaling-stroke;
-    }
-
-    .echo {
-      stroke: color-mix(in srgb, var(--sage-soft) 38%, transparent);
-      stroke-width: 1;
-    }
-
-    .contour {
-      stroke: color-mix(in srgb, var(--sage) 84%, transparent);
-      stroke-width: 1.5;
-    }
-
-    .breath-word,
-    .alert-line,
-    .alert-action {
-      text-anchor: middle;
-      font-family: ui-rounded, "Avenir Next", system-ui, sans-serif;
-    }
-
-    .breath-word {
-      fill: color-mix(in srgb, var(--text) 82%, transparent);
-      font-size: 15px;
-      font-weight: 500;
-      letter-spacing: .18em;
-      opacity: 0;
-    }
-
-    .alert-copy,
-    .invitation-copy {
-      opacity: 0;
-    }
-
-    .alert-line {
-      fill: color-mix(in srgb, var(--text) 94%, transparent);
-      font-size: 16px;
-      font-weight: 500;
-      letter-spacing: .075em;
-    }
-
-    .alert-action {
-      fill: color-mix(in srgb, var(--text) 60%, transparent);
-      font-size: 12px;
-      letter-spacing: .13em;
-    }
-
-    @keyframes edge-glow {
-      0%, 100% { opacity: .025; transform: scale(.992); }
-      50% { opacity: .19; transform: scale(1); }
-    }
-
-    @keyframes edge-pulse {
-      0%, 100% { opacity: .08; transform: scale(.992); }
-      50% { opacity: .48; transform: scale(1); }
-    }
-
-    @media (prefers-reduced-motion: reduce) {
-      .edge-glow.is-active { animation: none; opacity: .1; }
-      .edge-pulse.is-active { animation: none; opacity: .28; }
-    }
-
-    .controls {
-      width: 100%;
-      display: flex;
-      flex-wrap: wrap;
-      align-items: end;
-      justify-content: center;
-      gap: 10px;
-    }
-
-    .field {
-      display: grid;
-      gap: 6px;
-      color: var(--muted);
-      font-size: 12px;
-      letter-spacing: .05em;
-    }
-
-    button,
-    select {
-      min-height: 42px;
-      border: 1px solid #ffffff14;
-      border-radius: 12px;
-      background: var(--control);
-      color: var(--text);
-      padding: 0 14px;
-      font: inherit;
-    }
-
-    button {
-      cursor: pointer;
-      font-weight: 500;
-    }
-
-    button:first-of-type {
-      background: var(--text);
-      color: var(--screen);
-    }
-
-    button:hover,
-    select:hover { background: var(--control-hover); }
-    button:first-of-type:hover { background: var(--sage); }
-
-    button:focus-visible,
-    select:focus-visible {
-      outline: 2px solid var(--sage);
-      outline-offset: 3px;
-    }
-
-    .status {
-      color: var(--muted);
-      font-size: 13px;
-      letter-spacing: .08em;
-    }
-
-    @media (max-width: 520px) {
-      .controls { align-items: stretch; }
-      .field { width: 100%; }
-      button, select { flex: 1; }
-    }
-  </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Breathe Block — interface preview</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; display: grid; place-items: center;
+    gap: 26px; padding: 32px 20px; background: #121412; color: #cfd6cf;
+    font: 14px/1.5 ui-rounded, "Avenir Next", system-ui, sans-serif;
+  }
+  .stage { display: grid; justify-items: center; gap: 22px; }
+  .bezel {
+    width: min(466px, 82vw); aspect-ratio: 1; border-radius: 50%;
+    background: #000; position: relative; overflow: hidden;
+    box-shadow: 0 0 0 8px #191c19, 0 0 0 9px #2a2f2b, 0 26px 60px #0006;
+  }
+  canvas { width: 100%; height: 100%; display: block; }
+  .controls { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center;
+    max-width: 520px; }
+  button {
+    font: inherit; color: #cfd6cf; background: #23272400; padding: 7px 14px;
+    border: 1px solid #333a35; border-radius: 999px; cursor: pointer;
+    transition: background .16s, border-color .16s;
+  }
+  button:hover { background: #232724; border-color: #4a544c; }
+  button[aria-pressed="true"] { background: #2d332e; border-color: #66766a; }
+  .readout { font-variant-numeric: tabular-nums; color: #7d8a80; letter-spacing: .06em; }
+  .note { max-width: 520px; color: #6f7b72; font-size: 13px; text-align: center; }
+  .note code { color: #94a39a; }
+</style>
 </head>
 <body>
-  <main class="preview">
-    <div class="display">
-      <svg viewBox="0 0 320 320" role="img" aria-labelledby="preview-title preview-desc">
-        <title id="preview-title">BreatheBlock alert and flexible breathing contour</title>
-        <desc id="preview-desc">A calm alert appears, then a living contour expands during inhale and settles during exhale.</desc>
-        <circle class="edge-glow" id="edge-glow" cx="160" cy="160" r="151"></circle>
-        <circle class="edge-pulse" id="edge-pulse" cx="160" cy="160" r="151"></circle>
-        <path class="wash" id="wash"></path>
-        <path class="echo" id="echo"></path>
-        <path class="contour" id="contour"></path>
-        <text class="breath-word" id="breath-word" x="160" y="165">inhale</text>
-        <g class="alert-copy" id="alert-copy">
-          <text class="alert-line" id="alert-line-one" x="160" y="151">your breathing</text>
-          <text class="alert-line" id="alert-line-two" x="160" y="176">has shifted</text>
-        </g>
-        <g class="invitation-copy" id="invitation-copy">
-          <text class="alert-line" x="160" y="165">breathe with me</text>
-        </g>
-      </svg>
-    </div>
+<div class="stage">
+  <div class="bezel"><canvas id="screen" width="466" height="466"></canvas></div>
+  <div class="controls">
+    <button data-act="notice">a noticed session</button>
+    <button data-act="manual">a session you started</button>
+    <button data-act="dismiss">dismiss</button>
+    <button data-act="sleep">nobody there</button>
+    <button data-act="wake">somebody there</button>
+    <button data-act="palette">palette: ivory</button>
+    <button data-act="loop" aria-pressed="false">loop the tour</button>
+  </div>
+  <div class="readout" id="readout">awakening</div>
+  <p class="note">The same light field and state machine as the firmware, ported to canvas.
+  <code>BreatheBlock/BreathScene.cpp</code> is the source of truth; if the two ever disagree,
+  the firmware is right.</p>
+</div>
+<script>
+'use strict';
+// ---------------------------------------------------------------------------
+// Light field — mirrors BreatheBlock/BreathField.cpp
+// ---------------------------------------------------------------------------
+const SIZE = 466, CENTER = 233, MAX_R = 340;
 
-    <div class="controls">
-      <button type="button" id="preview-alert">Preview alert</button>
-      <button type="button" id="pause">Pause</button>
-      <label class="field" for="alert-choice">
-        Alert wording
-        <select id="alert-choice">
-          <option value="shifted">Your breathing has shifted</option>
-          <option value="activated">Your body seems more activated</option>
-          <option value="pause">A pause may help</option>
-        </select>
-      </label>
-      <label class="field" for="motion-mode">
-        Breathing motion
-        <select id="motion-mode">
-          <option value="live" selected>Follow live breath</option>
-          <option value="guided">Guided 4 in · 6 out</option>
-        </select>
-      </label>
-    </div>
+const PALETTES = {
+  ivory:     { core: [255, 246, 232], halo: [122, 172, 160] },
+  moonlight: { core: [236, 242, 255], halo: [108, 140, 186] },
+  ember:     { core: [255, 234, 206], halo: [178, 126,  96] },
+};
+const PALETTE_NAMES = Object.keys(PALETTES);
 
-    <div class="status" id="status" aria-live="polite">gentle prompt</div>
-  </main>
+const clamp01 = v => (v > 0 ? (v > 1 ? 1 : v) : 0);
+const smoothstep = t => t * t * (3 - 2 * t);
+const mix = (a, b, t) => a + (b - a) * t;
 
-  <script>
-    const contour = document.querySelector('#contour');
-    const echo = document.querySelector('#echo');
-    const wash = document.querySelector('#wash');
-    const breathWord = document.querySelector('#breath-word');
-    const alertCopy = document.querySelector('#alert-copy');
-    const invitationCopy = document.querySelector('#invitation-copy');
-    const edgeGlow = document.querySelector('#edge-glow');
-    const edgePulse = document.querySelector('#edge-pulse');
-    const alertLineOne = document.querySelector('#alert-line-one');
-    const alertLineTwo = document.querySelector('#alert-line-two');
-    const alertChoice = document.querySelector('#alert-choice');
-    const motionMode = document.querySelector('#motion-mode');
-    const previewAlert = document.querySelector('#preview-alert');
-    const pauseButton = document.querySelector('#pause');
-    const status = document.querySelector('#status');
+function bell(d, width) {
+  if (width <= 0) return 0;
+  const t = 1 - Math.abs(d) / width;
+  return t <= 0 ? 0 : smoothstep(t);
+}
 
-    const messages = {
-      shifted: ['your breathing', 'has shifted'],
-      activated: ['your body seems', 'more activated'],
-      pause: ['a pause', 'may help']
-    };
+function intensityAt(f, r) {
+  let value = f.coreLevel * bell(r, f.coreRadius);
+  const d = r - f.ringRadius;
+  value += f.ringLevel * bell(d, d < 0 ? f.ringInnerWidth : f.ringOuterWidth);
+  if (f.veilLevel > 0 && r < f.ringRadius) {
+    value += f.veilLevel * smoothstep(clamp01((f.ringRadius - r) / f.veilFeather));
+  }
+  value += f.horizonLevel * bell(r - f.horizonRadius, f.horizonWidth);
+  if (f.wellDepth > 0) value *= 1 - f.wellDepth * bell(r, f.wellRadius);
+  return value > 1 ? 1 : value;
+}
 
-    let running = true;
-    let alertActive = true;
-    let alertStartedAt = performance.now();
-    let breathStartedAt = performance.now();
-    let pausedAt = 0;
-    let frameId = 0;
-    let currentWord = 'inhale';
-    let renderedPrimary = .22;
-    let renderedDelayed = .21;
-    let renderedSoft = .19;
-    let lastFrameAt = performance.now();
+// One radius per pixel, computed once.
+const radiusMap = new Uint16Array(SIZE * SIZE);
+for (let y = 0; y < SIZE; y++) {
+  for (let x = 0; x < SIZE; x++) {
+    const dx = x - CENTER, dy = y - CENTER;
+    radiusMap[y * SIZE + x] = Math.min(MAX_R, Math.round(Math.sqrt(dx * dx + dy * dy)));
+  }
+}
 
-    const ease = value => 0.5 - 0.5 * Math.cos(Math.PI * Math.max(0, Math.min(1, value)));
+const lut = new Uint8ClampedArray((MAX_R + 1) * 3);
+function buildLut(field, palette) {
+  const warm = field.warmth;
+  const c = palette.core, h = palette.halo;
+  const cr = c[0] + 8 * warm, cg = c[1], cb = c[2] - 10 * warm;
+  const hr = h[0] + 12 * warm, hg = h[1], hb = h[2] - 12 * warm;
+  for (let r = 0; r <= MAX_R; r++) {
+    const intensity = intensityAt(field, r);
+    const k = clamp01(intensity * 1.15);
+    lut[r * 3]     = (hr + (cr - hr) * k) * intensity;
+    lut[r * 3 + 1] = (hg + (cg - hg) * k) * intensity;
+    lut[r * 3 + 2] = (hb + (cb - hb) * k) * intensity;
+  }
+}
 
-    function breathAt(elapsed) {
-      const cycle = ((elapsed % 10000) + 10000) % 10000;
-      return cycle < 4000 ? ease(cycle / 4000) : ease(1 - (cycle - 4000) / 6000);
+// ---------------------------------------------------------------------------
+// Scene — mirrors BreatheBlock/BreathScene.cpp
+// ---------------------------------------------------------------------------
+const CFG = {
+  inhaleMs: 4000, exhaleMs: 6000, breathCycles: 5,
+  awakenMs: 2600, noticeMs: 5200, inviteMs: 3400,
+  releaseMs: 4600, dismissMs: 2000, sleepAfterMs: 180000,
+  restCoreRadius: 30, restCoreLevel: 0.085,
+  sleepCoreRadius: 24, sleepCoreLevel: 0.028,
+  ringMinRadius: 100, ringMaxRadius: 184,
+  ringOuterWidth: 20, ringOuterWidthFull: 28,
+  ringInnerWidth: 22, ringInnerWidthFull: 14,
+  horizonRadius: 204, horizonWidth: 22,
+  wellRadius: 84, messageWellRadius: 118,
+  showProgress: true,
+};
+const GEOMETRY_TAU = 110, LEVEL_TAU = 260, WARMTH_TAU = 340;
+const INVISIBLE = 0.02, WORD_FADE = 800, WORD_GAP = 220, WELL_DEPTH = 0.9;
+
+const TEXT = {
+  shifted: 'your breathing\nhas shifted',
+  invite: 'breathe with me',
+  inhale: 'inhale', exhale: 'exhale', settled: 'settled',
+};
+
+function ramp(t, from, to) {
+  return to <= from ? (t >= to ? 1 : 0) : smoothstep(clamp01((t - from) / (to - from)));
+}
+function wordEnvelope(t, from, to) {
+  if (t <= from || t >= to) return 0;
+  return Math.min(smoothstep(clamp01((t - from) / WORD_FADE)),
+                  smoothstep(clamp01((to - t) / WORD_FADE)));
+}
+
+function newField() {
+  return {
+    centerX: CENTER, centerY: CENTER,
+    coreRadius: 5, coreLevel: 0,
+    ringRadius: 40, ringOuterWidth: CFG.ringOuterWidth,
+    ringInnerWidth: CFG.ringInnerWidth, ringLevel: 0,
+    veilFeather: 74, veilLevel: 0,
+    horizonRadius: CFG.horizonRadius, horizonWidth: CFG.horizonWidth, horizonLevel: 0,
+    wellRadius: CFG.wellRadius, wellDepth: 0, warmth: 0,
+  };
+}
+
+const scene = {
+  state: 'awakening', stateAt: 0, lastAt: 0, lastPresence: 0,
+  field: newField(), text: null, textOpacity: 0,
+  progress: 0, progressOpacity: 0, progressShown: 0,
+  releaseMs: CFG.releaseMs, releaseRing: 100, releaseLevel: 0, releaseVeil: 0,
+  releaseOuter: CFG.ringOuterWidth, releaseInner: CFG.ringInnerWidth,
+  drift: 1, dismissed: false, presence: true,
+};
+
+function enter(state, now) {
+  if (state === 'releasing') {
+    scene.releaseRing = scene.field.ringRadius;
+    scene.releaseLevel = scene.field.ringLevel;
+    scene.releaseVeil = scene.field.veilLevel;
+    scene.releaseOuter = scene.field.ringOuterWidth;
+    scene.releaseInner = scene.field.ringInnerWidth;
+  }
+  scene.state = state;
+  scene.stateAt = now;
+}
+const sessionActive = () =>
+  ['noticing', 'inviting', 'guiding', 'releasing'].includes(scene.state);
+
+function requestSession(now, announce) {
+  if (sessionActive()) return;
+  scene.dismissed = false;
+  scene.progress = 0;
+  enter(announce ? 'noticing' : 'inviting', now);
+}
+function dismiss(now) {
+  if (!sessionActive() || scene.state === 'releasing') return;
+  scene.dismissed = true;
+  scene.releaseMs = CFG.dismissMs;
+  enter('releasing', now);
+}
+
+const guideTotal = () => (CFG.inhaleMs + CFG.exhaleMs) * CFG.breathCycles;
+
+function buildTarget(now) {
+  const t = now - scene.stateAt;
+  const target = newField();
+  target.ringRadius = scene.field.ringRadius;
+  let text = null, textOpacity = 0, wellRadius = CFG.wellRadius;
+  let wantsProgress = 0, driftTarget = 1;
+
+  switch (scene.state) {
+    case 'awakening': {
+      const open = ramp(t, 0, 700), settle = ramp(t, 1200, CFG.awakenMs);
+      target.coreRadius = mix(mix(5, 46, open), CFG.restCoreRadius, settle);
+      target.coreLevel = mix(mix(0, 0.5, ramp(t, 0, 420)), CFG.restCoreLevel, settle);
+      const wave = ramp(t, 520, 2200);
+      target.ringRadius = mix(40, 214, wave);
+      target.ringOuterWidth = mix(26, 48, wave);
+      target.ringInnerWidth = mix(20, 34, wave);
+      target.ringLevel = 0.30 * ramp(t, 460, 820) * (1 - wave);
+      break;
     }
-
-    function liveBreathAt(elapsed) {
-      const angle = elapsed * Math.PI * 2 / 5200 + Math.sin(elapsed / 8700) * .24;
-      const value = .5 - .5 * Math.cos(angle);
-      const inhaling = Math.sin(angle) >= 0;
-      const phaseFade = ease(Math.min(1, Math.abs(Math.sin(angle)) / .32));
-      return { value, inhaling, phaseFade };
+    case 'resting':
+    case 'sleeping': {
+      const asleep = scene.state === 'sleeping';
+      const period = asleep ? 26000 : 16000;
+      const breath = Math.sin(now * (2 * Math.PI / period));
+      const radius = asleep ? CFG.sleepCoreRadius : CFG.restCoreRadius;
+      const level = asleep ? CFG.sleepCoreLevel : CFG.restCoreLevel;
+      target.coreRadius = radius * (1 + 0.16 * breath);
+      target.coreLevel = level * (1 + 0.20 * breath);
+      break;
     }
-
-    function envelope(elapsed, start, end, fade) {
-      if (elapsed < start || elapsed >= end) return 0;
-      const nearestEdge = Math.min(elapsed - start, end - elapsed);
-      return ease(Math.min(1, nearestEdge / fade));
+    case 'noticing': {
+      const bloom = ramp(t, 0, 1100), draw = ramp(t, 900, 4200);
+      const fade = ramp(t, 4000, CFG.noticeMs);
+      target.horizonRadius = mix(CFG.horizonRadius, 172, draw);
+      target.horizonWidth = mix(CFG.horizonWidth, 30, draw);
+      target.horizonLevel = 0.30 * bloom * (1 - fade);
+      target.coreRadius = CFG.restCoreRadius;
+      target.coreLevel = CFG.restCoreLevel * (1 - 0.55 * bloom);
+      text = TEXT.shifted;
+      textOpacity = wordEnvelope(t, 900, 4300);
+      wellRadius = CFG.messageWellRadius;
+      driftTarget = 0;
+      break;
     }
-
-    function smoothClosedPath(points) {
-      const count = points.length;
-      let path = `M ${(points[0].x + points[1].x) / 2} ${(points[0].y + points[1].y) / 2}`;
-      for (let index = 1; index <= count; index += 1) {
-        const point = points[index % count];
-        const next = points[(index + 1) % count];
-        path += ` Q ${point.x} ${point.y} ${(point.x + next.x) / 2} ${(point.y + next.y) / 2}`;
-      }
-      return `${path} Z`;
+    case 'inviting': {
+      const form = ramp(t, 0, 900), settle = ramp(t, 1900, CFG.inviteMs);
+      target.ringRadius = mix(mix(172, 148, form), CFG.ringMinRadius, settle);
+      target.ringLevel = 0.42 * form;
+      target.veilLevel = 0.055 * form;
+      target.ringInnerWidth = CFG.ringInnerWidth;
+      target.ringOuterWidth = CFG.ringOuterWidth;
+      target.coreLevel = 0;
+      text = TEXT.invite;
+      textOpacity = wordEnvelope(t, 500, 3000);
+      wellRadius = CFG.messageWellRadius;
+      driftTarget = 0;
+      break;
     }
-
-    function tissuePath(breath, phase, layer) {
-      const points = [];
-      const count = 28;
-      const centerY = 160;
-      const radiusX = 92 + breath * 35 + layer * 5;
-      const radiusY = 78 + breath * 29 + layer * 5;
-
-      for (let index = 0; index < count; index += 1) {
-        const angle = Math.PI * 2 * index / count;
-        const lowerHalf = (Math.sin(angle) + 1) / 2;
-        const sideFullness = .82 + lowerHalf * .2;
-        const motion =
-          Math.sin(angle * 2 + phase * .72 + layer) * .031 +
-          Math.sin(angle * 3 - phase * .38 - layer * .4) * .017 +
-          Math.sin(angle * 5 + phase * .2) * .006;
-        const lowerExpansion = breath * lowerHalf * .055;
-        const shape = 1 + motion + lowerExpansion;
-
-        points.push({
-          x: 160 + Math.cos(angle) * radiusX * sideFullness * shape,
-          y: centerY + Math.sin(angle) * radiusY * (1 + motion * .55)
-        });
-      }
-      return smoothClosedPath(points);
-    }
-
-    function setMessage() {
-      const message = messages[alertChoice.value];
-      alertLineOne.textContent = message[0];
-      alertLineTwo.textContent = message[1];
-    }
-
-    function startAlert() {
-      setMessage();
-      alertActive = true;
-      alertStartedAt = performance.now();
-      alertCopy.style.opacity = '0';
-      invitationCopy.style.opacity = '0';
-      breathWord.style.opacity = '0';
-      status.textContent = 'gentle prompt';
-      if (!running) {
-        running = true;
-        pauseButton.textContent = 'Pause';
-        frameId = requestAnimationFrame(draw);
-      }
-    }
-
-    function draw(now) {
-      const alertElapsed = now - alertStartedAt;
-      const frameSeconds = Math.min(.05, Math.max(0, (now - lastFrameAt) / 1000));
-      const contourBlend = 1 - Math.exp(-frameSeconds * 4.6);
-      lastFrameAt = now;
-
-      const observationOpacity = alertActive
-        ? envelope(alertElapsed, 0, 3200, 850)
-        : 0;
-      const invitationOpacity = alertActive
-        ? envelope(alertElapsed, 4100, 6300, 850)
-        : 0;
-      const edgeStrength = alertActive
-        ? envelope(alertElapsed, 0, 7200, 900)
-        : 0;
-      const edgeWave = .5 - .5 * Math.cos(Math.PI * 2 * alertElapsed / 2400);
-
-      alertCopy.style.opacity = observationOpacity.toFixed(3);
-      invitationCopy.style.opacity = invitationOpacity.toFixed(3);
-      edgeGlow.style.opacity = (edgeStrength * (.025 + edgeWave * .165)).toFixed(3);
-      edgePulse.style.opacity = (edgeStrength * (.08 + edgeWave * .4)).toFixed(3);
-      const edgeScale = .992 + edgeWave * .008;
-      edgeGlow.style.transform = `scale(${edgeScale})`;
-      edgePulse.style.transform = `scale(${edgeScale})`;
-
-      if (alertActive && alertElapsed < 3200) status.textContent = 'gentle prompt';
-      if (alertActive && alertElapsed >= 3200 && alertElapsed < 4100) status.textContent = 'quiet transition';
-      if (alertActive && alertElapsed >= 4100 && alertElapsed < 6300) status.textContent = 'invitation';
-      if (alertActive && alertElapsed >= 6300) status.textContent = 'settling into breath';
-
-      if (alertActive && alertElapsed >= 7200) {
-        alertActive = false;
-        breathStartedAt = now;
-      }
-
-      const elapsed = now - breathStartedAt;
-      const cycle = ((elapsed % 10000) + 10000) % 10000;
-      const guidedInhaling = cycle < 4000;
-      const liveReading = liveBreathAt(elapsed);
-      const followingLive = motionMode.value === 'live';
-      const inhaling = followingLive ? liveReading.inhaling : guidedInhaling;
-      const pulse = .22 + Math.sin(alertElapsed / 620) * .035;
-      const guidedPrimary = breathAt(elapsed);
-      const guidedDelayed = breathAt(elapsed - 380);
-      const guidedSoft = breathAt(elapsed - 620);
-      const liveDelayed = liveBreathAt(elapsed - 260).value;
-      const liveSoft = liveBreathAt(elapsed - 470).value;
-      const primaryTarget = alertActive ? pulse : (followingLive ? liveReading.value : guidedPrimary);
-      const delayedTarget = alertActive ? pulse * .94 : (followingLive ? liveDelayed : guidedDelayed);
-      const softTarget = alertActive ? pulse * .88 : (followingLive ? liveSoft : guidedSoft);
-      renderedPrimary += (primaryTarget - renderedPrimary) * contourBlend;
-      renderedDelayed += (delayedTarget - renderedDelayed) * contourBlend;
-      renderedSoft += (softTarget - renderedSoft) * contourBlend;
-      const phase = now / 1800;
-      contour.setAttribute('d', tissuePath(renderedPrimary, phase, 0));
-      echo.setAttribute('d', tissuePath(renderedDelayed, phase - .4, .45));
-      wash.setAttribute('d', tissuePath(renderedSoft, phase - .75, .9));
-
-      if (!alertActive) {
-        const nextWord = inhaling ? 'inhale' : 'exhale';
-        if (nextWord !== currentWord) {
-          currentWord = nextWord;
-          breathWord.textContent = currentWord;
-        }
-        const entryFade = ease(Math.min(1, elapsed / 850));
-        let phaseFade;
-        if (followingLive) {
-          phaseFade = liveReading.phaseFade;
-        } else {
-          const phaseElapsed = guidedInhaling ? cycle : cycle - 4000;
-          const phaseDuration = guidedInhaling ? 4000 : 6000;
-          phaseFade = ease(Math.min(1, Math.min(phaseElapsed, phaseDuration - phaseElapsed) / 700));
-        }
-        breathWord.style.opacity = (entryFade * phaseFade).toFixed(3);
-        status.textContent = followingLive
-          ? 'following live breathing · simulated in this preview'
-          : (inhaling ? '4 seconds in' : '6 seconds out');
+    case 'guiding': {
+      const cycleMs = CFG.inhaleMs + CFG.exhaleMs;
+      const cycle = Math.floor(t / cycleMs), within = t % cycleMs;
+      const inhaling = within < CFG.inhaleMs;
+      let extension, phaseTime, phaseLength;
+      if (inhaling) {
+        phaseTime = within; phaseLength = CFG.inhaleMs;
+        extension = smoothstep(clamp01(phaseTime / (phaseLength * 0.88)));
       } else {
-        breathWord.style.opacity = '0';
+        phaseTime = within - CFG.inhaleMs; phaseLength = CFG.exhaleMs;
+        extension = 1 - smoothstep(clamp01(phaseTime / (phaseLength * 0.92)));
       }
-
-      if (running) frameId = requestAnimationFrame(draw);
+      target.ringRadius = mix(CFG.ringMinRadius, CFG.ringMaxRadius, extension);
+      target.ringInnerWidth = mix(CFG.ringInnerWidth, CFG.ringInnerWidthFull, extension);
+      target.ringOuterWidth = mix(CFG.ringOuterWidth, CFG.ringOuterWidthFull, extension);
+      target.ringLevel = (0.40 + 0.16 * extension) * (1 + 0.025 * Math.sin(now * 0.0011));
+      target.veilLevel = 0.050 + 0.065 * extension;
+      target.coreLevel = 0;
+      target.warmth = -0.18 + 0.50 * extension;
+      const scaffold = cycle <= 1 ? 1 : (cycle === 2 ? 0.5 : 0);
+      text = inhaling ? TEXT.inhale : TEXT.exhale;
+      textOpacity = scaffold * wordEnvelope(phaseTime, 0, phaseLength - WORD_GAP);
+      scene.progress = clamp01(t / guideTotal());
+      wantsProgress = CFG.showProgress ? 1 : 0;
+      driftTarget = 0;
+      break;
     }
-
-    previewAlert.addEventListener('click', startAlert);
-    alertChoice.addEventListener('change', startAlert);
-    motionMode.addEventListener('change', () => {
-      breathStartedAt = performance.now();
-    });
-
-    pauseButton.addEventListener('click', () => {
-      if (running) {
-        running = false;
-        pausedAt = performance.now();
-        cancelAnimationFrame(frameId);
-        pauseButton.textContent = 'Play';
-      } else {
-        const now = performance.now();
-        const pausedFor = now - pausedAt;
-        alertStartedAt += pausedFor;
-        breathStartedAt += pausedFor;
-        running = true;
-        pauseButton.textContent = 'Pause';
-        frameId = requestAnimationFrame(draw);
+    case 'releasing': {
+      const d = scene.releaseMs, go = ramp(t, 0, d * 0.62);
+      target.ringRadius = mix(scene.releaseRing, 208, go);
+      target.ringOuterWidth = mix(scene.releaseOuter, 54, go);
+      target.ringInnerWidth = mix(scene.releaseInner, 40, go);
+      target.ringLevel = mix(scene.releaseLevel, 0, ramp(t, 0, d * 0.70));
+      target.veilLevel = mix(scene.releaseVeil, 0, ramp(t, 0, d * 0.45));
+      target.coreRadius = CFG.restCoreRadius;
+      target.coreLevel = CFG.restCoreLevel * ramp(t, d * 0.45, d);
+      if (!scene.dismissed) {
+        text = TEXT.settled;
+        textOpacity = wordEnvelope(t, 600, 3200);
       }
-    });
+      driftTarget = 0;
+      break;
+    }
+  }
 
-    startAlert();
-    frameId = requestAnimationFrame(draw);
-  </script>
+  target.wellRadius = wellRadius;
+  target.wellDepth = WELL_DEPTH * textOpacity;
+  scene.drift += (driftTarget - scene.drift) * (1 / (1 + 260 / 40)) * 0.25;
+  target.centerX = CENTER + scene.drift * 5 * Math.sin(now * 0.00017);
+  target.centerY = CENTER + scene.drift * 4 * Math.sin(now * 0.000119 + 1.1);
+
+  scene.text = text;
+  scene.textOpacity = textOpacity;
+  scene.progressOpacity = wantsProgress;
+  return target;
+}
+
+function approach(field, target, dtMs) {
+  const gk = dtMs / (GEOMETRY_TAU + dtMs);
+  const lk = dtMs / (LEVEL_TAU + dtMs);
+  const wk = dtMs / (WARMTH_TAU + dtMs);
+  const chase = (key, k) => { field[key] += (target[key] - field[key]) * k; };
+
+  chase('centerX', gk); chase('centerY', gk);
+  if (field.coreLevel < INVISIBLE) field.coreRadius = target.coreRadius;
+  else chase('coreRadius', gk);
+  if (field.ringLevel < INVISIBLE && field.veilLevel < INVISIBLE) {
+    field.ringRadius = target.ringRadius;
+    field.ringOuterWidth = target.ringOuterWidth;
+    field.ringInnerWidth = target.ringInnerWidth;
+  } else {
+    chase('ringRadius', gk); chase('ringOuterWidth', gk); chase('ringInnerWidth', gk);
+  }
+  if (field.horizonLevel < INVISIBLE) {
+    field.horizonRadius = target.horizonRadius;
+    field.horizonWidth = target.horizonWidth;
+  } else { chase('horizonRadius', gk); chase('horizonWidth', gk); }
+  chase('wellRadius', gk);
+  field.veilFeather = target.veilFeather;
+  chase('coreLevel', lk); chase('ringLevel', lk); chase('veilLevel', lk);
+  chase('horizonLevel', lk); chase('warmth', wk);
+  field.wellDepth = target.wellDepth;
+}
+
+function step(now) {
+  let dt = now - scene.lastAt;
+  if (dt < 1) dt = 1; if (dt > 200) dt = 200;
+  scene.lastAt = now;
+  if (scene.presence) scene.lastPresence = now;
+
+  const t = now - scene.stateAt;
+  switch (scene.state) {
+    case 'awakening': if (t >= CFG.awakenMs) enter('resting', now); break;
+    case 'resting':
+      if (!scene.presence && now - scene.lastPresence >= CFG.sleepAfterMs)
+        enter('sleeping', now);
+      break;
+    case 'sleeping': if (scene.presence) enter('resting', now); break;
+    case 'noticing': if (t >= CFG.noticeMs) enter('inviting', now); break;
+    case 'inviting': if (t >= CFG.inviteMs) enter('guiding', now); break;
+    case 'guiding':
+      if (t >= guideTotal()) { scene.releaseMs = CFG.releaseMs; enter('releasing', now); }
+      break;
+    case 'releasing':
+      if (t >= scene.releaseMs) { scene.dismissed = false; enter('resting', now); }
+      break;
+  }
+  approach(scene.field, buildTarget(now), dt);
+  scene.progressShown += (scene.progressOpacity - scene.progressShown) *
+                         (dt / (LEVEL_TAU + dt));
+}
+
+// ---------------------------------------------------------------------------
+// Drawing
+// ---------------------------------------------------------------------------
+const canvas = document.getElementById('screen');
+const ctx = canvas.getContext('2d', { alpha: false });
+const image = ctx.createImageData(SIZE, SIZE);
+const pixels = image.data;
+for (let i = 3; i < pixels.length; i += 4) pixels[i] = 255;
+
+let paletteIndex = 0;
+
+function draw() {
+  buildLut(scene.field, PALETTES[PALETTE_NAMES[paletteIndex]]);
+  const cx = Math.round(scene.field.centerX), cy = Math.round(scene.field.centerY);
+  const shiftX = cx - CENTER, shiftY = cy - CENTER;
+  for (let y = 0; y < SIZE; y++) {
+    // The ember drifts a few pixels; clamping the lookup rather than shifting
+    // the whole map keeps this a single pass.
+    const my = Math.min(SIZE - 1, Math.max(0, y - shiftY));
+    const rowOut = y * SIZE, rowMap = my * SIZE;
+    for (let x = 0; x < SIZE; x++) {
+      const mx = Math.min(SIZE - 1, Math.max(0, x - shiftX));
+      const out = (rowOut + x) * 4;
+      const r = radiusMap[rowMap + mx] * 3;
+      pixels[out] = lut[r];
+      pixels[out + 1] = lut[r + 1];
+      pixels[out + 2] = lut[r + 2];
+    }
+  }
+  ctx.putImageData(image, 0, 0);
+
+  if (scene.progressShown > 0.01 && scene.progress > 0) {
+    ctx.save();
+    ctx.strokeStyle = `rgba(201,214,206,${0.18 * scene.progressShown})`;
+    ctx.lineWidth = 2; ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.arc(CENTER, CENTER, 223, -Math.PI / 2,
+            -Math.PI / 2 + 2 * Math.PI * scene.progress);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  if (scene.text && scene.textOpacity > 0.004) {
+    const lines = scene.text.split('\n');
+    const single = lines.length === 1 && !lines[0].includes(' ');
+    ctx.save();
+    ctx.font = `300 ${single ? 30 : 25}px ui-rounded, "Avenir Next", system-ui, sans-serif`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillStyle = `rgba(242,245,241,${0.91 * scene.textOpacity})`;
+    ctx.letterSpacing = '5px';
+    const top = CENTER - 21 * (lines.length - 1);
+    lines.forEach((line, i) => ctx.fillText(line, CENTER, top + i * 42));
+    ctx.restore();
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Controls
+// ---------------------------------------------------------------------------
+const readout = document.getElementById('readout');
+const tour = [
+  { gapMs: 6000, run: now => {} },
+  { gapMs: 500, run: now => requestSession(now, true) },
+  { gapMs: 4000, run: now => {} },
+  { gapMs: 500, run: now => requestSession(now, false) },
+  { gapMs: 4000, run: now => {} },
+  { gapMs: 7000, run: now => { scene.presence = false; scene.lastPresence = now - CFG.sleepAfterMs; } },
+  { gapMs: 5000, run: now => { scene.presence = true; } },
+];
+let looping = false, tourStep = 0, tourAt = 0;
+
+document.querySelector('.controls').addEventListener('click', event => {
+  const button = event.target.closest('button');
+  if (!button) return;
+  const now = performance.now();
+  switch (button.dataset.act) {
+    case 'notice': looping = false; requestSession(now, true); break;
+    case 'manual': looping = false; requestSession(now, false); break;
+    case 'dismiss': dismiss(now); break;
+    case 'sleep': scene.presence = false; scene.lastPresence = now - CFG.sleepAfterMs; break;
+    case 'wake': scene.presence = true; break;
+    case 'palette':
+      paletteIndex = (paletteIndex + 1) % PALETTE_NAMES.length;
+      button.textContent = 'palette: ' + PALETTE_NAMES[paletteIndex];
+      break;
+    case 'loop':
+      looping = !looping; tourStep = 0; tourAt = now;
+      button.setAttribute('aria-pressed', String(looping));
+      break;
+  }
+});
+
+function frame(now) {
+  if (looping && !sessionActive()) {
+    if (now - tourAt >= tour[tourStep].gapMs) {
+      tourAt = now;
+      tourStep = (tourStep + 1) % tour.length;
+      tour[tourStep].run(now);
+    }
+  } else if (looping) {
+    tourAt = now;
+  }
+  step(now);
+  draw();
+  readout.textContent = scene.state +
+    (scene.state === 'guiding'
+       ? '  ·  ' + Math.round(scene.progress * 100) + '%'
+       : '');
+  requestAnimationFrame(frame);
+}
+
+scene.lastAt = performance.now();
+scene.stateAt = scene.lastAt;
+scene.lastPresence = scene.lastAt;
+requestAnimationFrame(frame);
+</script>
 </body>
 </html>
