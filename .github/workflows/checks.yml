@@ -1,0 +1,61 @@
+name: checks
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  core:
+    name: interface invariants
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # Radar parser, detector, and the interface's own design rules: that the
+      # renderer's integer radius matches a square root, that nothing is drawn
+      # outside the invalidated box, that no state change is visible as a step.
+      - name: Unit tests
+        run: make -C tests check
+
+      # visual-preview.html carries a hand port of BreathScene. Fail if it has
+      # drifted away from the firmware.
+      - name: Browser preview matches the firmware
+        run: make -C tools check-preview
+
+  device-ui:
+    name: device UI on the host
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch LVGL
+        run: git clone --depth 1 -b v9.2.2 https://github.com/lvgl/lvgl.git lvgl
+
+      - name: Cache the LVGL host build
+        uses: actions/cache@v4
+        with:
+          path: tools/host/liblvgl.a
+          key: lvgl-9.2.2-${{ hashFiles('tools/host/lv_conf.h') }}
+
+      # Compiles and runs the real BreathingUI against real LVGL, which is what
+      # catches API drift and flush-buffer mistakes without a board attached.
+      - name: Run the interface headless
+        run: |
+          mkdir -p out
+          make -C tools host_ui
+          tools/host_ui out
+
+      - name: Render the contact sheet
+        run: |
+          python3 -m pip install --quiet --disable-pip-version-check pillow
+          python3 tools/contact_sheet.py out
+
+      - name: Upload the contact sheet
+        uses: actions/upload-artifact@v4
+        with:
+          name: interface-contact-sheet
+          path: out/contact-sheet.png
