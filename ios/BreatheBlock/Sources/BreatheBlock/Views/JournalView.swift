@@ -52,19 +52,21 @@ struct JournalView: View {
             Section {
                 if sessions.isEmpty {
                     Text("No sessions yet.")
+                        .font(.subheadline)
                         .foregroundStyle(.secondary)
                 } else {
                     ForEach(sessions) { session in
                         HStack {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(session.startedAt, style: .date)
+                                    .font(.subheadline)
                                 Text(session.startedAt, style: .time)
-                                    .font(.caption)
+                                    .font(.caption2)
                                     .foregroundStyle(.secondary)
                             }
                             Spacer()
                             Text(durationLabel(session.duration))
-                                .font(.system(.body, design: .monospaced))
+                                .font(.system(.subheadline, design: .monospaced))
                                 .foregroundStyle(.secondary)
                             if !session.completed {
                                 Image(systemName: "xmark.circle")

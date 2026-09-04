@@ -1,10 +1,16 @@
 import SwiftUI
 
-/// The round light field, ticked once per display frame via TimelineView.
+/// The light field, ticked once per display frame via TimelineView.
 /// Deliberately just the glow for this first pass — no word overlay yet
 /// (see ios/SETUP.md phase notes). There's no separate button anywhere in
 /// the app: the blob itself is the only control, so a tap anywhere on the
-/// visible circle drives it directly.
+/// visible glow drives it directly.
+///
+/// No clip shape: the field itself is what's circular (BreathField's own
+/// radial falloff, not a CSS-style mask), and it already fades to black
+/// well inside the canvas's square bounds, which is why there's no visible
+/// square edge here as long as the surrounding background is also pure
+/// black — see ContentView, which sets that explicitly.
 struct BreathingView: View {
     @ObservedObject var controller: BreathingController
 
@@ -20,9 +26,7 @@ struct BreathingView: View {
                                       size: CGSize(width: side, height: side)))
             }
         }
-        .background(Color.black)
         .aspectRatio(1, contentMode: .fit)
-        .clipShape(Circle())
         .contentShape(Circle())
         .onTapGesture { controller.tapBlob() }
     }

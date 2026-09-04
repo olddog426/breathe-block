@@ -43,13 +43,15 @@ struct SettingsView: View {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(name)
+                        .font(.subheadline)
                     Text(detail)
-                        .font(.caption)
+                        .font(.caption2)
                         .foregroundStyle(.secondary)
                 }
                 Spacer()
                 if selected {
                     Image(systemName: "checkmark.circle.fill")
+                        .font(.footnote)
                         .foregroundStyle(Color.accentColor)
                 }
             }

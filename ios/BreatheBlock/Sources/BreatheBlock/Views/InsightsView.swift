@@ -44,7 +44,7 @@ struct InsightsView: View {
                 }
 
                 Text("Insights here are just your own logged sessions for now. Once a paired device, calendar, or health data are connected, this is where the patterns behind your stress — not just a record of it — will start to show up.")
-                    .font(.footnote)
+                    .font(.caption)
                     .foregroundStyle(.secondary)
                     .padding(14)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -69,10 +69,10 @@ private struct StatTile: View {
     var body: some View {
         VStack(spacing: 4) {
             Text(value)
-                .font(.system(.title2, design: .monospaced))
+                .font(.system(.subheadline, design: .monospaced))
                 .fontWeight(.medium)
             Text(label)
-                .font(.caption2)
+                .font(.system(size: 9))
                 .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity)

@@ -14,8 +14,9 @@ struct ContentView: View {
     var body: some View {
         NavigationStack(path: $path) {
             BreathingView(controller: controller)
-                .padding(36)
+                .padding(14)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(Color.black.ignoresSafeArea())
                 .toolbar {
                     ToolbarItem(placement: .topBarLeading) {
                         Button {
@@ -96,6 +97,7 @@ private struct MenuSheet: View {
             HStack(spacing: 12) {
                 Circle().fill(Color.accentColor).frame(width: 6, height: 6)
                 Text(title)
+                    .font(.subheadline)
                 Spacer()
             }
             .padding(.vertical, 12)
