@@ -1,81 +1,109 @@
 import SwiftUI
 import SwiftData
 
+enum AppDestination: Hashable {
+    case journal, insights, settings
+}
+
 struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
     @StateObject private var controller = BreathingController()
+    @State private var path = NavigationPath()
+    @State private var showMenu = false
 
     var body: some View {
-        NavigationStack {
-            VStack(spacing: 28) {
-                Spacer(minLength: 0)
-
-                BreathingView(controller: controller)
-                    .padding(.horizontal, 40)
-
-                Text(controller.stateName)
-                    .font(.system(.footnote, design: .monospaced))
-                    .foregroundStyle(.secondary)
-                    .textCase(.uppercase)
-                    .tracking(1.5)
-
-                Button(action: primaryAction) {
-                    Text(primaryLabel)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 4)
-                }
-                .buttonStyle(.bordered)
-                .tint(.primary)
-                .padding(.horizontal, 40)
-
-                Spacer(minLength: 0)
-            }
-            .padding(.vertical, 24)
-            .navigationTitle("Breathe Block")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    NavigationLink("History") {
-                        HistoryView()
+        NavigationStack(path: $path) {
+            BreathingView(controller: controller)
+                .padding(36)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .toolbar {
+                    ToolbarItem(placement: .topBarLeading) {
+                        Button {
+                            showMenu = true
+                        } label: {
+                            Image(systemName: "line.3.horizontal")
+                                .font(.system(size: 14, weight: .medium))
+                        }
+                        .frame(width: 34, height: 34)
+                        .background(.thinMaterial, in: Circle())
+                    }
+                    ToolbarItem(placement: .topBarTrailing) {
+                        // A passive status LED, not a control — see
+                        // BreathDataSource's doc comment. Always ambient
+                        // today; the color is the one seam a later BLE/
+                        // HealthKit phase changes.
+                        Circle()
+                            .fill(dataSourceColor)
+                            .frame(width: 8, height: 8)
                     }
                 }
-            }
+                .toolbarBackground(.hidden, for: .navigationBar)
+                .navigationDestination(for: AppDestination.self) { destination in
+                    switch destination {
+                    case .journal: JournalView()
+                    case .insights: InsightsView()
+                    case .settings: SettingsView(controller: controller)
+                    }
+                }
         }
         .onAppear {
             controller.onSessionFinished = { startedAt, completed in
                 logSession(startedAt: startedAt, completed: completed)
             }
         }
+        .sheet(isPresented: $showMenu) {
+            MenuSheet { destination in
+                showMenu = false
+                path.append(destination)
+            }
+            .presentationDetents([.height(220)])
+            .presentationDragIndicator(.visible)
+        }
         .preferredColorScheme(.dark)
     }
 
-    /// "breathe with me" opens an invitation; while it's held open the same
-    /// button answers it ("begin"), same as a tap on the device's glass
-    /// (DESIGN.md §4) — an invitation the app never let you answer would be
-    /// a dead end, not a real button. Anything already guiding or releasing
-    /// dismisses.
-    private var primaryLabel: String {
-        switch controller.stateName {
-        case "resting": return "breathe with me"
-        case "inviting": return "begin"
-        default: return "dismiss"
-        }
-    }
-
-    private func primaryAction() {
-        switch controller.stateName {
-        case "resting":
-            controller.start()
-        case "inviting":
-            controller.beginInvitedSession()
-        default:
-            controller.dismiss()
+    private var dataSourceColor: Color {
+        switch controller.dataSource {
+        case .ambient: return Color(white: 0.3)
+        case .device: return .green
+        case .oura: return .accentColor
+        case .appleHealth: return .pink
         }
     }
 
     private func logSession(startedAt: Date, completed: Bool) {
         let session = BreathSession(startedAt: startedAt, endedAt: Date(), completed: completed)
         modelContext.insert(session)
+    }
+}
+
+private struct MenuSheet: View {
+    let onSelect: (AppDestination) -> Void
+
+    var body: some View {
+        VStack(spacing: 4) {
+            row("Journal", .journal)
+            row("Insights", .insights)
+            row("Settings", .settings)
+        }
+        .padding(12)
+    }
+
+    private func row(_ title: String, _ destination: AppDestination) -> some View {
+        Button {
+            onSelect(destination)
+        } label: {
+            HStack(spacing: 12) {
+                Circle().fill(Color.accentColor).frame(width: 6, height: 6)
+                Text(title)
+                Spacer()
+            }
+            .padding(.vertical, 12)
+            .padding(.horizontal, 8)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(.primary)
     }
 }
 

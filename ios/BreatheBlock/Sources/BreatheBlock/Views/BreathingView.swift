@@ -2,9 +2,9 @@ import SwiftUI
 
 /// The round light field, ticked once per display frame via TimelineView.
 /// Deliberately just the glow for this first pass — no word overlay yet
-/// (see ios/SETUP.md phase notes); the engine's `stateName`/`progress`
-/// are exposed on the controller for a surrounding view to show as text
-/// in the meantime.
+/// (see ios/SETUP.md phase notes). There's no separate button anywhere in
+/// the app: the blob itself is the only control, so a tap anywhere on the
+/// visible circle drives it directly.
 struct BreathingView: View {
     @ObservedObject var controller: BreathingController
 
@@ -23,6 +23,7 @@ struct BreathingView: View {
         .background(Color.black)
         .aspectRatio(1, contentMode: .fit)
         .clipShape(Circle())
-        .overlay(Circle().stroke(Color(white: 0.16), lineWidth: 8))
+        .contentShape(Circle())
+        .onTapGesture { controller.tapBlob() }
     }
 }

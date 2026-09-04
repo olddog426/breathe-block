@@ -61,9 +61,11 @@ already sitting at `ios/BreatheBlock/Sources/BreatheBlock/`), and:
 - Choose **"Create groups"** (not "Create folder references").
 - Make sure the `BreatheBlock` target's checkbox is ticked.
 
-This adds `BreatheBlockApp.swift`, `ContentView.swift`, `Models/`, `Views/`,
-`Engine/`, and the bridging header — nine files in total, replacing the ones
-you deleted in step 2.
+This adds `BreatheBlockApp.swift`, `ContentView.swift`, `Models/`
+(`BreathSession.swift`, `BreathingPreferences.swift`), `Views/`
+(`BreathingController.swift`, `BreathingView.swift`, `JournalView.swift`,
+`InsightsView.swift`, `SettingsView.swift`), `Engine/`, and the bridging
+header, replacing the ones you deleted in step 2.
 
 ## 4. Add the shared C++ source (referenced, not copied)
 
@@ -121,19 +123,31 @@ left checked, so the files moved and the relative `../../../../../` in
 
 ## What phase 1 does and doesn't do
 
-- One breathing screen, ticked every display frame through the same
-  `BreathScene`/`BreathField` the device runs — same ember, same pacing,
-  same easing.
-- A tap starts a session exactly like the device's own tap-to-check-in does
-  for a self-started session: straight to guidance, no "your breathing has
-  shifted," since nothing was noticed — see `DESIGN.md` §4a. There's no
-  radar here to notice anything with yet.
+The interface is deliberately down to one thing: the blob. No title, no
+button, no state label — a tap on the blob itself is the only control,
+ticked every display frame through the same `BreathScene`/`BreathField` the
+device runs, so it's the same ember, same pacing, same easing.
+
+- **Tap the blob**: resting opens an invitation, a held invitation begins
+  guiding, anything else (guiding, releasing) dismisses — the same
+  three-way gesture a tap on the device's glass drives (`DESIGN.md` §4).
+  A session started this way never claims to have noticed anything, since
+  there's no radar here to notice anything with yet.
+- **The status LED**, top right, is a passive indicator, not a control — it
+  previews where a live signal will eventually come from (paired device /
+  Oura / Apple Health) but always reads ambient today, since none of those
+  are wired up. See `BreathDataSource`'s doc comment: it's the seam a later
+  phase sets, not a feature this one has.
 - Every finished or dismissed session is logged locally (SwiftData) with
   start time, end time, and whether it completed — deliberately the
   smallest useful record, matching the device's own restraint. Nothing
   leaves the phone.
-- A History screen: a 14-day bar chart of minutes breathed (Swift Charts),
-  and a plain list of individual sessions.
+- The hamburger menu (top left) opens three screens: **Journal** (a 14-day
+  bar chart of minutes breathed and a plain session list), **Insights**
+  (a few honest stats computed from your own logged sessions — nothing
+  inferred or fabricated; see the note in `InsightsView`), and **Settings**
+  (a breathing style, which actually changes the engine's pacing, and an
+  objective, which is a stored preference with nothing yet to personalize).
 
 Not in phase 1, by design, per the phased plan:
 

@@ -46,6 +46,15 @@ typedef NS_ENUM(NSInteger, BreathPaletteChoice) {
 // so callers must gate on state rather than call this unconditionally.
 - (void)tapWithNowMs:(uint32_t)nowMs NS_SWIFT_NAME(tap(nowMs:));
 
+// Adjusts pacing only (inhale/exhale length, round count) — everything
+// else in the scene's config (geometry, timings for every other state)
+// stays whatever it already was. Takes effect on the next state rebuild,
+// so it's safe to call any time, including mid-session.
+- (void)setBreathingStyleWithInhaleMs:(uint32_t)inhaleMs
+                              exhaleMs:(uint32_t)exhaleMs
+                                cycles:(uint8_t)cycles
+    NS_SWIFT_NAME(setBreathingStyle(inhaleMs:exhaleMs:cycles:));
+
 @property(nonatomic, readonly) BOOL sessionActive;
 // True for exactly one updateWithNowMs: call, the frame a guided session
 // finishes on its own (not dismissed) — the natural moment to log it.

@@ -13,6 +13,10 @@ import Combine
 final class BreathingController: ObservableObject {
     @Published private(set) var stateName: String = "awakening"
     @Published private(set) var progress: Double = 0
+    /// Always `.ambient` in this build — see BreathDataSource's doc comment.
+    /// A stored property (not a computed constant) because it's the seam a
+    /// later BLE/HealthKit phase sets, not a permanent fact about the app.
+    @Published private(set) var dataSource: BreathDataSource = .ambient
 
     /// Fires once, whenever a session finishes releasing and the object is
     /// back at rest — BreathEngine reports this the same way whether the
@@ -30,29 +34,39 @@ final class BreathingController: ObservableObject {
     private var sessionStartedAt: Date?
     private var sessionWasDismissed = false
 
-    func start() {
-        sessionStartedAt = Date()
-        sessionWasDismissed = false
-        engine.startSession(nowMs: Self.nowMs())
+    init() {
+        let stored = UserDefaults.standard.string(forKey: PreferenceKeys.breathingStyle)
+        let style = stored.flatMap(BreathingStyle.init(rawValue:)) ?? .calm
+        applyBreathingStyle(style)
     }
 
-    /// Answers a held invitation and begins guiding. Only meaningful while
-    /// `stateName == "inviting"` — see the doc comment on
-    /// `BreathEngine.tap(nowMs:)` for why callers must gate on that rather
-    /// than call it unconditionally.
-    func beginInvitedSession() {
-        engine.tap(nowMs: Self.nowMs())
+    /// There's no separate button — the blob itself is the control. Same
+    /// three-way behavior ContentView's button used to drive: resting opens
+    /// an invitation, a held invitation begins guiding, anything else
+    /// dismisses (a safe no-op if nothing was actually active).
+    func tapBlob() {
+        switch stateName {
+        case "resting":
+            sessionStartedAt = Date()
+            sessionWasDismissed = false
+            engine.startSession(nowMs: Self.nowMs())
+        case "inviting":
+            // Answers the held invitation — see the doc comment on
+            // BreathEngine.tap(nowMs:) for why this is only safe while
+            // stateName is "inviting".
+            engine.tap(nowMs: Self.nowMs())
+        default:
+            // Logging happens later, in tick(), once the engine reports the
+            // releasing animation has actually finished — not here — since
+            // a dismiss still takes ~2s to release.
+            sessionWasDismissed = true
+            engine.dismiss(nowMs: Self.nowMs())
+        }
     }
 
-    /// Cuts the current session short. Logging happens later, in `tick()`,
-    /// once the engine reports the releasing animation has actually
-    /// finished — not here — since a dismiss still takes ~2s to release.
-    func dismiss() {
-        sessionWasDismissed = true
-        engine.dismiss(nowMs: Self.nowMs())
+    func applyBreathingStyle(_ style: BreathingStyle) {
+        engine.setBreathingStyle(inhaleMs: style.inhaleMs, exhaleMs: style.exhaleMs, cycles: style.cycles)
     }
-
-    var sessionActive: Bool { engine.sessionActive }
 
     /// Call once per frame from BreathingView. Returns the frame's image,
     /// or nil if the buffer couldn't be wrapped (should not happen).

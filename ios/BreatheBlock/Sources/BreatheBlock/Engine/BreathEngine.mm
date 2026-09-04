@@ -91,6 +91,16 @@ NSString* NameForState(SceneState state) {
   _scene.handleTap(nowMs);
 }
 
+- (void)setBreathingStyleWithInhaleMs:(uint32_t)inhaleMs
+                              exhaleMs:(uint32_t)exhaleMs
+                                cycles:(uint8_t)cycles {
+  SceneConfig config = _scene.config();
+  config.inhaleMs = inhaleMs;
+  config.exhaleMs = exhaleMs;
+  config.breathCycles = cycles;
+  _scene.setConfig(config);
+}
+
 - (BOOL)sessionActive {
   return _scene.sessionActive() ? YES : NO;
 }

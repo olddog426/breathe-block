@@ -12,7 +12,7 @@ private struct DayTotal: Identifiable {
     var id: Date { day }
 }
 
-struct HistoryView: View {
+struct JournalView: View {
     @Query(sort: \BreathSession.startedAt, order: .reverse)
     private var sessions: [BreathSession]
 
@@ -78,7 +78,7 @@ struct HistoryView: View {
                 Text("Sessions")
             }
         }
-        .navigationTitle("History")
+        .navigationTitle("Journal")
         .navigationBarTitleDisplayMode(.inline)
     }
 
@@ -90,7 +90,7 @@ struct HistoryView: View {
 
 #Preview {
     NavigationStack {
-        HistoryView()
+        JournalView()
     }
     .modelContainer(for: BreathSession.self, inMemory: true)
 }
