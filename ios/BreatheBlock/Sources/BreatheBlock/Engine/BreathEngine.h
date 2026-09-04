@@ -37,6 +37,15 @@ typedef NS_ENUM(NSInteger, BreathPaletteChoice) {
 - (void)startSessionWithNowMs:(uint32_t)nowMs NS_SWIFT_NAME(startSession(nowMs:));
 - (void)dismissWithNowMs:(uint32_t)nowMs NS_SWIFT_NAME(dismiss(nowMs:));
 
+// Answers a held invitation and begins guiding — the same gesture as a tap
+// on the device's glass while it's showing "breathe with me" (see
+// DESIGN.md §4: "INVITING doesn't start itself... a tap begins it"). Only
+// call this while stateName is "inviting"; from "resting" the identical
+// underlying gesture instead starts the device's heart-rate/breath-rate
+// check-in (DESIGN.md §4a), which this build has no live numbers to show,
+// so callers must gate on state rather than call this unconditionally.
+- (void)tapWithNowMs:(uint32_t)nowMs NS_SWIFT_NAME(tap(nowMs:));
+
 @property(nonatomic, readonly) BOOL sessionActive;
 // True for exactly one updateWithNowMs: call, the frame a guided session
 // finishes on its own (not dismissed) — the natural moment to log it.

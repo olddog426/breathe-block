@@ -14,12 +14,13 @@ final class BreathingController: ObservableObject {
     @Published private(set) var stateName: String = "awakening"
     @Published private(set) var progress: Double = 0
 
-    /// Fires once, on the frame a guided session finishes on its own —
-    /// never on a dismiss — with the session's start time, since
-    /// `sessionStartedAt` is already cleared by the time this runs
-    /// (deferred to the next run loop turn; see `tick()`). The natural
-    /// moment to log it; see ContentView.
-    var onSessionFinished: ((Date) -> Void)?
+    /// Fires once, whenever a session finishes releasing and the object is
+    /// back at rest — BreathEngine reports this the same way whether the
+    /// session ran to completion or was cut short by `dismiss()`; the
+    /// `completed` flag is what tells those apart (tracked here, not by the
+    /// engine — see `dismiss()`). The natural moment to log it; see
+    /// ContentView.
+    var onSessionFinished: ((Date, Bool) -> Void)?
 
     private let engine = BreathEngine()
     private static let fieldSize = 466
@@ -27,20 +28,28 @@ final class BreathingController: ObservableObject {
     private let colorSpace = CGColorSpaceCreateDeviceRGB()
 
     private var sessionStartedAt: Date?
+    private var sessionWasDismissed = false
 
     func start() {
         sessionStartedAt = Date()
+        sessionWasDismissed = false
         engine.startSession(nowMs: Self.nowMs())
     }
 
-    /// Returns the session's start time if one was active (so the caller
-    /// can log a partial/dismissed entry), or nil if nothing was running.
-    @discardableResult
-    func dismiss() -> Date? {
-        let startedAt = sessionStartedAt
-        sessionStartedAt = nil
+    /// Answers a held invitation and begins guiding. Only meaningful while
+    /// `stateName == "inviting"` — see the doc comment on
+    /// `BreathEngine.tap(nowMs:)` for why callers must gate on that rather
+    /// than call it unconditionally.
+    func beginInvitedSession() {
+        engine.tap(nowMs: Self.nowMs())
+    }
+
+    /// Cuts the current session short. Logging happens later, in `tick()`,
+    /// once the engine reports the releasing animation has actually
+    /// finished — not here — since a dismiss still takes ~2s to release.
+    func dismiss() {
+        sessionWasDismissed = true
         engine.dismiss(nowMs: Self.nowMs())
-        return startedAt
     }
 
     var sessionActive: Bool { engine.sessionActive }
@@ -60,11 +69,11 @@ final class BreathingController: ObservableObject {
             }
         }
 
-        if engine.consumeSessionFinished() {
-            let startedAt = sessionStartedAt ?? Date()
+        if engine.consumeSessionFinished(), let startedAt = sessionStartedAt {
+            let completed = !sessionWasDismissed
             sessionStartedAt = nil
             let callback = onSessionFinished
-            DispatchQueue.main.async { callback?(startedAt) }
+            DispatchQueue.main.async { callback?(startedAt, completed) }
         }
 
         pixelBuffer.withUnsafeMutableBufferPointer { buffer in

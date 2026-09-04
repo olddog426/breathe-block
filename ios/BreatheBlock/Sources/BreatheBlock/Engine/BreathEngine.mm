@@ -87,6 +87,10 @@ NSString* NameForState(SceneState state) {
   _scene.dismiss(nowMs);
 }
 
+- (void)tapWithNowMs:(uint32_t)nowMs {
+  _scene.handleTap(nowMs);
+}
+
 - (BOOL)sessionActive {
   return _scene.sessionActive() ? YES : NO;
 }

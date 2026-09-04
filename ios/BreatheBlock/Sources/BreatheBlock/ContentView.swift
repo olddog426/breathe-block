@@ -20,7 +20,7 @@ struct ContentView: View {
                     .tracking(1.5)
 
                 Button(action: primaryAction) {
-                    Text(controller.sessionActive ? "dismiss" : "breathe with me")
+                    Text(primaryLabel)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 4)
                 }
@@ -42,20 +42,34 @@ struct ContentView: View {
             }
         }
         .onAppear {
-            controller.onSessionFinished = { startedAt in
-                logSession(startedAt: startedAt, completed: true)
+            controller.onSessionFinished = { startedAt, completed in
+                logSession(startedAt: startedAt, completed: completed)
             }
         }
         .preferredColorScheme(.dark)
     }
 
+    /// "breathe with me" opens an invitation; while it's held open the same
+    /// button answers it ("begin"), same as a tap on the device's glass
+    /// (DESIGN.md §4) — an invitation the app never let you answer would be
+    /// a dead end, not a real button. Anything already guiding or releasing
+    /// dismisses.
+    private var primaryLabel: String {
+        switch controller.stateName {
+        case "resting": return "breathe with me"
+        case "inviting": return "begin"
+        default: return "dismiss"
+        }
+    }
+
     private func primaryAction() {
-        if controller.sessionActive {
-            if let startedAt = controller.dismiss() {
-                logSession(startedAt: startedAt, completed: false)
-            }
-        } else {
+        switch controller.stateName {
+        case "resting":
             controller.start()
+        case "inviting":
+            controller.beginInvitedSession()
+        default:
+            controller.dismiss()
         }
     }
 
