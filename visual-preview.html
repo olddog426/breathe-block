@@ -97,17 +97,18 @@ for (let y = 0; y < SIZE; y++) {
   }
 }
 
-// Where a color heats toward as activation climbs: orange at the midpoint,
-// red at the threshold itself. Two segments rather than one straight mix so
-// the early climb (still well below the threshold) reads as a gentle warming
-// rather than an immediate alarm color.
-const ORANGE = [255, 140, 60], RED = [214, 64, 48];
+// Where a color heats toward as activation climbs: orange by a little over a
+// third of the way there, red by the threshold itself. Two segments rather
+// than one straight mix, weighted so red has the larger share of the climb —
+// this is meant to read as a real, rising sense of it, not a gentle tint.
+const HEAT_MIDPOINT = 0.35;
+const ORANGE = [255, 120, 40], RED = [236, 40, 32];
 function heatShift([r, g, b], heat) {
-  if (heat <= 0.5) {
-    const k = heat / 0.5;
+  if (heat <= HEAT_MIDPOINT) {
+    const k = heat / HEAT_MIDPOINT;
     return [mix(r, ORANGE[0], k), mix(g, ORANGE[1], k), mix(b, ORANGE[2], k)];
   }
-  const k = (heat - 0.5) / 0.5;
+  const k = (heat - HEAT_MIDPOINT) / (1 - HEAT_MIDPOINT);
   return [mix(ORANGE[0], RED[0], k), mix(ORANGE[1], RED[1], k), mix(ORANGE[2], RED[2], k)];
 }
 
@@ -119,12 +120,12 @@ function buildLut(field, palette) {
   let [hr, hg, hb] = [h[0] + 12 * warm, h[1], h[2] - 12 * warm];
   // The ember visibly heating toward orange, then red, as activation climbs
   // toward its threshold — meant to be seen, unlike warmth above. The halo
-  // only follows part of the way, so the ember stays the one thing that
-  // clearly reddens rather than washing the whole glow in alarm color.
+  // follows most of the way too, so the whole glow reads as heating up, not
+  // just a small core dot changing hue.
   const heat = clamp01(field.heat);
   if (heat > 0) {
     [cr, cg, cb] = heatShift([cr, cg, cb], heat);
-    [hr, hg, hb] = heatShift([hr, hg, hb], heat * 0.45);
+    [hr, hg, hb] = heatShift([hr, hg, hb], heat * 0.75);
   }
   for (let r = 0; r <= MAX_R; r++) {
     const intensity = intensityAt(field, r);
@@ -216,6 +217,10 @@ const scene = {
   // cleared can't take effect immediately — see handleTap — so it waits
   // here and is honoured the moment the word is gone.
   tapPending: false,
+  // How hot the ember was the instant a shift was noticed. Noticing carries
+  // this outward into its own bloom rather than starting neutral, then eases
+  // it away — the sense of it releasing as the invitation forms.
+  noticedHeat: 0,
 };
 
 function enter(state, now) {
@@ -229,6 +234,7 @@ function enter(state, now) {
     scene.releaseOuter = scene.field.ringOuterWidth;
     scene.releaseInner = scene.field.ringInnerWidth;
   }
+  if (state === 'noticing') scene.noticedHeat = scene.field.heat;
   scene.state = state;
   scene.stateAt = now;
 }
@@ -392,6 +398,10 @@ function buildTarget(now) {
       target.horizonLevel = 0.30 * bloom * (1 - fade);
       target.coreRadius = CFG.restCoreRadius;
       target.coreLevel = CFG.restCoreLevel * (1 - 0.55 * bloom);
+      // Whatever heat the ember was carrying releases outward into this
+      // whole bloom, then cools on the same schedule the rim draws inward
+      // on, so the release and the shape forming read as one motion.
+      target.heat = scene.noticedHeat * (1 - draw);
       text = TEXT.shifted;
       textOpacity = wordEnvelope(t, 900, 4300);
       wellRadius = CFG.messageWellRadius;

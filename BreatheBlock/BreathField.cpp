@@ -24,24 +24,25 @@ float bell(float d, float width) {
   return smoothstep(t);
 }
 
-// Where a color heats toward as activation climbs: orange at the midpoint,
-// red at the threshold itself. Two segments rather than one straight mix so
-// the early climb (still well below the threshold) reads as a gentle warming
-// rather than an immediate alarm color.
-constexpr float kOrangeR = 255.0f, kOrangeG = 140.0f, kOrangeB = 60.0f;
-constexpr float kRedR = 214.0f, kRedG = 64.0f, kRedB = 48.0f;
+// Where a color heats toward as activation climbs: orange by a little over a
+// third of the way there, red by the threshold itself. Two segments rather
+// than one straight mix, weighted so red has the larger share of the climb —
+// this is meant to read as a real, rising sense of it, not a gentle tint.
+constexpr float kHeatMidpoint = 0.35f;
+constexpr float kOrangeR = 255.0f, kOrangeG = 120.0f, kOrangeB = 40.0f;
+constexpr float kRedR = 236.0f, kRedG = 40.0f, kRedB = 32.0f;
 
 float mixf(float a, float b, float t) { return a + (b - a) * t; }
 
 void heatShift(float baseR, float baseG, float baseB, float heat, float* r,
               float* g, float* b) {
-  if (heat <= 0.5f) {
-    const float k = heat / 0.5f;
+  if (heat <= kHeatMidpoint) {
+    const float k = heat / kHeatMidpoint;
     *r = mixf(baseR, kOrangeR, k);
     *g = mixf(baseG, kOrangeG, k);
     *b = mixf(baseB, kOrangeB, k);
   } else {
-    const float k = (heat - 0.5f) / 0.5f;
+    const float k = (heat - kHeatMidpoint) / (1.0f - kHeatMidpoint);
     *r = mixf(kOrangeR, kRedR, k);
     *g = mixf(kOrangeG, kRedG, k);
     *b = mixf(kOrangeB, kRedB, k);
@@ -164,12 +165,12 @@ void BreathLut::build(const BreathField& field, const BreathPalette& palette) {
 
   // The ember visibly heating toward orange, then red, as activation climbs
   // toward its threshold — meant to be seen, unlike warmth above. The halo
-  // only follows part of the way, so the ember itself stays the one thing
-  // that clearly reddens rather than washing the whole glow in alarm colour.
+  // follows most of the way too, so the whole glow reads as heating up, not
+  // just a small core dot changing hue.
   const float heat = clamp01(field.heat);
   if (heat > 0.0f) {
     heatShift(coreR, coreG, coreB, heat, &coreR, &coreG, &coreB);
-    heatShift(haloR, haloG, haloB, heat * 0.45f, &haloR, &haloG, &haloB);
+    heatShift(haloR, haloG, haloB, heat * 0.75f, &haloR, &haloG, &haloB);
   }
 
   int lastLit = -1;

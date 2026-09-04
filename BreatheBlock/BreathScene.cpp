@@ -97,6 +97,9 @@ void BreathScene::enter(SceneState state, uint32_t nowMs) {
     releaseRingOuterWidth_ = output_.field.ringOuterWidth;
     releaseRingInnerWidth_ = output_.field.ringInnerWidth;
   }
+  if (state == SceneState::Noticing) {
+    noticedHeat_ = output_.field.heat;
+  }
   state_ = state;
   stateStartedMs_ = nowMs;
 }
@@ -427,6 +430,12 @@ void BreathScene::buildTarget(const SceneInput& input, BreathField* target) {
       target->horizonLevel = 0.30f * bloom * (1.0f - fade);
       target->coreRadius = c.restCoreRadius;
       target->coreLevel = c.restCoreLevel * (1.0f - 0.55f * bloom);
+      // Whatever heat the ember was carrying releases outward into this
+      // whole bloom — the same colour math heat always drives, just no
+      // longer confined to the core — and cools on the same schedule the
+      // rim draws inward on, so the release and the shape forming read as
+      // one motion rather than two.
+      target->heat = noticedHeat_ * (1.0f - draw);
 
       text = SceneText::BreathingShifted;
       textOpacity = wordEnvelope(t, 900.0f, 4300.0f);

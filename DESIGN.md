@@ -194,6 +194,13 @@ hot, something has genuinely been sustained. There's still no flashing, no
 red text, no "stress detected" — just a colour the ember itself is allowed to
 carry, the way a real ember does.
 
+That colour doesn't just vanish the instant a session begins. Whatever heat
+the ember was carrying releases outward into NOTICING's own bloom — the
+horizon ring inherits it as it draws in from the rim — and cools on the same
+schedule the shape forms on, so the two read as one motion: the sense of it
+being carried out and breathed away, not a colour that happened to change.
+By the time the invitation is ready, the colour is neutral again.
+
 ## 5. Verbal design
 
 | Moment | Words |

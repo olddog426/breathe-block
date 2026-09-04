@@ -327,6 +327,45 @@ int main() {
            "sleeping must stay neutral no matter the activation score");
   }
 
+  // Whatever heat the ember was carrying releases outward into the noticing
+  // bloom rather than starting neutral, then cools as the rim draws inward —
+  // and never as a jump, wherever it happens to be in that cool-down.
+  {
+    BreathScene release(config);
+    release.begin(0);
+    for (uint32_t now = kStepMs; now <= 3000; now += kStepMs)
+      release.update(at(now));
+    for (uint32_t now = 3040; now <= 8000; now += kStepMs) {
+      SceneInput input = at(now);
+      input.activationScore = 1.0f;
+      release.update(input);
+    }
+    assert(release.state() == SceneState::Resting);
+    const float heatBeforeNotice = release.output().field.heat;
+    assert(heatBeforeNotice > 0.9f &&
+           "should be hot going into a noticed session");
+
+    release.requestSession(8000, true);
+    // heat is a colour-only channel (see BreathLut::build), invisible to
+    // profileDistance's intensity comparison — checked directly instead.
+    float previousHeat = release.output().field.heat;
+    float worstHeatStep = 0.0f;
+    for (uint32_t now = 8040; now <= 8000 + config.noticeMs; now += kStepMs) {
+      SceneInput input = at(now);
+      input.activationScore = 1.0f;  // still elevated; only noticedHeat_ decays
+      release.update(input);
+      const float step = fabsf(release.output().field.heat - previousHeat);
+      if (step > worstHeatStep) worstHeatStep = step;
+      previousHeat = release.output().field.heat;
+    }
+    printf("noticed-heat release: worst frame-to-frame change %.4f\n",
+           worstHeatStep);
+    assert(worstHeatStep < 0.03f && "the heat release must not jump");
+    assert(release.state() == SceneState::Inviting);
+    assert(release.output().field.heat < 0.05f &&
+           "the carried heat should have cooled by the time the invitation forms");
+  }
+
   // A tap while resting shows a snapshot of your numbers, warms up and cools
   // back down without a jump anywhere in the sequence, and — left alone —
   // quietly returns to rest rather than waiting forever.

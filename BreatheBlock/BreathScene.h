@@ -198,6 +198,11 @@ class BreathScene {
   // snapshot without needing its own copy of SceneInput.
   float lastDisplayHeartRate_ = 0.0f;
   float lastDisplayBreathRate_ = 0.0f;
+  // How hot the ember was the instant a shift was noticed. Noticing carries
+  // this outward into its own bloom rather than starting neutral, then eases
+  // it away — the sense of it releasing as the invitation forms, not just an
+  // ember that happened to change color.
+  float noticedHeat_ = 0.0f;
   // A tap answering the invitation before "breathe with me" has safely
   // cleared can't take effect immediately — see handleTap — so it waits
   // here and is honoured the moment the word is gone.

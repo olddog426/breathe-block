@@ -135,6 +135,7 @@ int main(int argc, char** argv) {
       {1200, "awakening-wave"},
       {4000, "resting"},
       {sessionAtMs - 300, "resting-warm"},
+      {sessionAtMs + 50, "noticing-hot"},
       {sessionAtMs + 700, "noticing-bloom"},
       {sessionAtMs + 2200, "noticing-words"},
       {sessionAtMs + 4600, "noticing-inward"},
@@ -196,7 +197,10 @@ int main(int argc, char** argv) {
     // Stays at baseline through the "resting" sample, then a sustained shift
     // builds toward the session, so "resting-warm" shows the ember's
     // continuity precursor rather than a mid-ramp value at both samples.
-    float activation = (static_cast<float>(hostNowMs) - 4400.0f) / 1400.0f;
+    // Reaches full activation with enough hold time before sessionAtMs for
+    // the smoothed heat to actually converge, rather than catching it
+    // mid-chase right as the session starts.
+    float activation = (static_cast<float>(hostNowMs) - 4400.0f) / 600.0f;
     if (activation < 0.0f) activation = 0.0f;
     if (activation > 1.0f) activation = 1.0f;
     ui.setActivation(hostNowMs < sessionAtMs ? activation : 0.0f);
