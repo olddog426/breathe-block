@@ -134,6 +134,26 @@ int main() {
     assert(lut.empty());
   }
 
+  // Heat is meant to be seen: at full heat the ember's own colour should
+  // read as red (redder than green or blue), clearly past a simple warm
+  // tint, regardless of which palette is active.
+  {
+    BreathField ember;
+    ember.coreRadius = 40.0f;
+    ember.coreLevel = 0.3f;
+    ember.heat = 1.0f;
+    BreathLut lut;
+    lut.build(ember, BreathPalettes::kIvory);
+    const uint16_t color = lut.colorAt(2, 0);
+    const int r5 = (color >> 11) & 0x1F, g6 = (color >> 5) & 0x3F,
+              b5 = color & 0x1F;
+    // Compare on a common 0..31 scale so the 5/6-bit channel split doesn't
+    // bias the comparison.
+    const int g5 = g6 / 2;
+    assert(r5 > g5 + 2 && r5 > b5 + 2 &&
+           "full heat should read as red, not just a warm tint");
+  }
+
   printf("breath field: ok\n");
   return 0;
 }

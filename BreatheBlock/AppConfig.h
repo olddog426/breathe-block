@@ -44,8 +44,9 @@ constexpr const char* kTextSettled = "settled";
 constexpr BreathPalette kPalette = BreathPalettes::kIvory;
 
 // A hairline arc traces the rim during guidance: how much is left, with no
-// number and no countdown. Set false for the purest version of the object.
-constexpr bool kShowSessionProgress = true;
+// number and no countdown. Off by default: the contour itself stays a
+// complete, continuous circle throughout — nothing ever reads as partial.
+constexpr bool kShowSessionProgress = false;
 
 // ---------------------------------------------------------------------------
 // Interaction timing

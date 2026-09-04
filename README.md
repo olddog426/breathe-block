@@ -12,9 +12,10 @@ first; this file is how to run it.
 
 At rest the display is true black with a single dim ember. When the radar sees
 a sustained shift relative to your own seated baseline, the ember visibly
-grows and brightens, then a glow blooms at the rim and says *your breathing
-has shifted*, then *breathe with me* — and waits. A tap begins it: five
-four-second inhales and six-second exhales before dissolving back to black.
+grows, brightens, and climbs through orange toward red, then a glow blooms at
+the rim and says *your breathing has shifted*, then *breathe with me* — and
+waits. A tap begins it: five four-second inhales and six-second exhales
+before dissolving back to black.
 Left unanswered for 24 seconds, the invitation withdraws quietly instead of
 starting on its own. Nothing on screen ever steps or cuts; a regression test
 asserts it.
@@ -111,8 +112,9 @@ Everything you are likely to want to change is in `BreatheBlock/AppConfig.h`:
 * **Voice** — the five strings, together in one block.
 * **Palette** — `kIvory` (warm centre, sage halo), `kMoonlight`, `kEmber`.
 * **Pacing** — inhale, exhale, cycle count.
-* **`kShowSessionProgress`** — the hairline arc that traces the rim during
-  guidance. Set it false for the purest version of the object.
+* **`kShowSessionProgress`** — a hairline arc that traces the rim during
+  guidance. Off by default so the contour stays a complete circle throughout;
+  set it true to bring the arc back.
 
 Geometry (how large the contour grows, how soft its edges are, how bright the
 resting ember is) lives in `SceneConfig` in `BreathScene.h`.

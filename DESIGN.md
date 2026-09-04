@@ -113,7 +113,8 @@ its smallest.
       ┌────▼─────┐
       │ GUIDING  │  5 × (4 s in / 6 s out).  Words for the first two cycles,
       │          │  half-lit on the third, then light alone.
-      └────┬─────┘  A hairline arc traces the rim: how long is left, no numbers.
+      └────┬─────┘  The contour stays a complete circle throughout — no
+                     partial arc, nothing that ever reads as broken.
            │
       ┌────▼─────┐
       │ RELEASING│  4.6 s  the contour expands and dissolves outward while the
@@ -180,15 +181,18 @@ glance rather than needing to be sought out. No words, no numbers, no
 indication that anything is being measured — it is the difference between an
 object that is on and an object that is present.
 
-The ember also carries one more signal, just as wordlessly: it visibly grows
-and brightens as the detector's own smoothed, baseline-relative activation
-score climbs — 0 at your seated baseline, rising toward the same threshold
-that would eventually start a session, so the approach is unmistakable well
-before a session actually begins. Not raw heart rate, and deliberately not
-alarm language or an alert colour: the score only moves with a genuine
-sustained shift, so it cannot flicker on an ordinary momentary blip, and the
-ember has already been quietly responding rather than snapping into a warning
-state.
+The ember also carries one more signal, just as wordlessly: it visibly grows,
+brightens, and climbs through orange toward red as the detector's own
+smoothed, baseline-relative activation score rises — 0 at your seated
+baseline, 1 at the same threshold that would eventually start a session, so
+the approach is unmistakable well before a session actually begins. This is
+the one deliberate exception to "no alarm colour" in the whole interface, and
+it earns the exception the same way the numeric check-in does: it is tied to
+the detector's slow, baseline-relative score, never raw heart rate, so it
+cannot flicker red on an ordinary momentary blip — by the time it reads as
+hot, something has genuinely been sustained. There's still no flashing, no
+red text, no "stress detected" — just a colour the ember itself is allowed to
+carry, the way a real ember does.
 
 ## 5. Verbal design
 

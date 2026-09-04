@@ -85,6 +85,7 @@ int main(int argc, char** argv) {
   const std::string outDir = argc > 1 ? argv[1] : "out";
 
   SceneConfig config;
+  config.showProgress = false;  // matches AppConfig.h's kShowSessionProgress
   BreathScene scene(config);
   BreathLut lut;
   std::vector<uint16_t> frame(kSize * kSize);

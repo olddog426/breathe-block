@@ -287,6 +287,46 @@ int main() {
            "sleeping must stay neutral no matter the activation score");
   }
 
+  // Unlike warmth's subliminal nudge, heat is meant to be seen: the ember
+  // visibly climbs from neutral through orange toward red as activation
+  // approaches the threshold, and stays neutral asleep regardless of score.
+  {
+    BreathScene hot(config);
+    hot.begin(0);
+    for (uint32_t now = kStepMs; now <= 3000; now += kStepMs) {
+      SceneInput input = at(now);
+      input.activationScore = 0.0f;
+      hot.update(input);
+    }
+    assert(hot.state() == SceneState::Resting);
+    assert(hot.output().field.heat < 0.02f &&
+           "heat should sit near neutral at baseline");
+
+    for (uint32_t now = 3040; now <= 8000; now += kStepMs) {
+      SceneInput input = at(now);
+      input.activationScore = 1.0f;
+      hot.update(input);
+    }
+    assert(hot.output().field.heat > 0.9f &&
+           "a sustained rise in activation should visibly heat the ember");
+
+    BreathScene asleepHot(config);
+    asleepHot.begin(0);
+    SceneConfig sleepy2 = config;
+    sleepy2.sleepAfterMs = 2000;
+    asleepHot.setConfig(sleepy2);
+    for (uint32_t now = kStepMs; now <= 1500; now += kStepMs)
+      asleepHot.update(at(now));
+    for (uint32_t now = 1540; now <= 6000; now += kStepMs) {
+      SceneInput input = at(now, false);
+      input.activationScore = 1.0f;
+      asleepHot.update(input);
+    }
+    assert(asleepHot.state() == SceneState::Sleeping);
+    assert(asleepHot.output().field.heat < 0.02f &&
+           "sleeping must stay neutral no matter the activation score");
+  }
+
   // A tap while resting shows a snapshot of your numbers, warms up and cools
   // back down without a jump anywhere in the sequence, and — left alone —
   // quietly returns to rest rather than waiting forever.

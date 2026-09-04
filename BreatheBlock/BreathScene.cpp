@@ -337,6 +337,10 @@ void BreathScene::buildTarget(const SceneInput& input, BreathField* target) {
       // the time a session actually starts, the ember has already been
       // quietly responding.
       target->warmth = c.restActivationWarmth * activation;
+      // Unlike warmth above, heat is meant to be seen: the ember's own
+      // colour visibly climbing through orange toward red as activation
+      // approaches the threshold that would start a session.
+      target->heat = activation;
       break;
     }
 
@@ -617,4 +621,5 @@ void BreathScene::approach(BreathField* current, const BreathField& target,
   // after the word had already appeared.
   current->wellDepth = target.wellDepth;
   chase(&current->warmth, target.warmth, warmthK);
+  chase(&current->heat, target.heat, warmthK);
 }
