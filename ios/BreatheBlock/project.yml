@@ -1,0 +1,29 @@
+apiVersion: 1
+name: BreatheBlock
+targets:
+  BreatheBlock:
+    type: application
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources:
+      - path: Sources/BreatheBlock
+      - path: ../../BreatheBlock/BreathField.h
+        group: Firmware
+      - path: ../../BreatheBlock/BreathField.cpp
+        group: Firmware
+      - path: ../../BreatheBlock/BreathScene.h
+        group: Firmware
+      - path: ../../BreatheBlock/BreathScene.cpp
+        group: Firmware
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.breatheblock.companion
+        SWIFT_VERSION: "5.0"
+        TARGETED_DEVICE_FAMILY: "1"
+        SWIFT_OBJC_BRIDGING_HEADER: Sources/BreatheBlock/BreatheBlock-Bridging-Header.h
+        CLANG_CXX_LANGUAGE_STANDARD: "gnu++17"
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_CFBundleDisplayName: "Breathe Block"
+        INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        CODE_SIGN_STYLE: Automatic

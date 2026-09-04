@@ -24,6 +24,43 @@ the environment these files were written in. Expect a round of real
 debugging together the first time you build, the same way the firmware's
 Arduino bring-up went.
 
+## The quick way (recommended)
+
+A `project.yml` at `ios/BreatheBlock/project.yml` describes the whole Xcode
+project — bridging header, C++ dialect, every file — so a tool called
+[XcodeGen](https://github.com/yonaskolb/XcodeGen) can build the `.xcodeproj`
+for you instead of clicking through "New Project" and adding files by hand.
+
+1. Get the code onto your Mac — the simplest way is GitHub's web UI:
+   open the repo, pick the `claude/ios-companion-app` branch from the branch
+   dropdown, **Code → Download ZIP**, then unzip it.
+2. Install XcodeGen once (Terminal): `brew install xcodegen`
+   (no Homebrew? [brew.sh](https://brew.sh) has a one-line installer.)
+3. Generate the project (Terminal):
+   ```sh
+   cd breathe-block-ios-companion-app/ios/BreatheBlock
+   xcodegen generate
+   ```
+   (adjust the folder name to whatever the unzip actually produced.)
+4. Double-click the new `BreatheBlock.xcodeproj` — it opens already wired up.
+5. Click the project name in the navigator → the **BreatheBlock** target →
+   **Signing & Capabilities** → set **Team** to your own Apple ID (add it
+   first under Xcode → Settings → Accounts if it's not listed).
+6. Plug in your iPhone, pick it from the device menu next to the Run button
+   (top toolbar), and click **Run**.
+7. First launch will refuse to open — on the phone, **Settings → General →
+   VPN & Device Management**, tap your Apple ID under Developer App, **Trust**.
+
+This wasn't testable without a Mac, so treat step 4 as the first real
+checkpoint: if `BreatheBlock.xcodeproj` won't open or `xcodegen generate`
+errors, tell me exactly what it says and we'll fix `project.yml` together —
+that's a much smaller fix than debugging the manual path below.
+
+If you'd rather not install anything, or XcodeGen gives you trouble, the
+manual walkthrough below builds the identical project by hand.
+
+## The manual way
+
 ## 1. Create the project shell
 
 1. Xcode → File → New → Project → **iOS → App**.
