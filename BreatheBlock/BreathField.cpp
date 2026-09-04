@@ -24,11 +24,14 @@ float bell(float d, float width) {
   return smoothstep(t);
 }
 
-// Where a color heats toward as activation climbs: orange by a little over a
-// third of the way there, red by the threshold itself. Two segments rather
-// than one straight mix, weighted so red has the larger share of the climb —
-// this is meant to read as a real, rising sense of it, not a gentle tint.
+// Three anchors along heat's -1..1 range: a deliberately cool, calming
+// colour at rest, the palette's own plain colour at neutral (0 — untouched,
+// so anything that never sets heat looks exactly as it always did), then
+// orange by a little over a third of the way to +1, red at the threshold
+// itself. The climb toward red gets the larger share of that half, so it
+// reads as a real, rising sense of it rather than a gentle tint.
 constexpr float kHeatMidpoint = 0.35f;
+constexpr float kCalmR = 120.0f, kCalmG = 200.0f, kCalmB = 205.0f;
 constexpr float kOrangeR = 255.0f, kOrangeG = 120.0f, kOrangeB = 40.0f;
 constexpr float kRedR = 236.0f, kRedG = 40.0f, kRedB = 32.0f;
 
@@ -36,7 +39,12 @@ float mixf(float a, float b, float t) { return a + (b - a) * t; }
 
 void heatShift(float baseR, float baseG, float baseB, float heat, float* r,
               float* g, float* b) {
-  if (heat <= kHeatMidpoint) {
+  if (heat <= 0.0f) {
+    const float k = heat + 1.0f;  // 0 at heat=-1 (calm), 1 at heat=0 (base)
+    *r = mixf(kCalmR, baseR, k);
+    *g = mixf(kCalmG, baseG, k);
+    *b = mixf(kCalmB, baseB, k);
+  } else if (heat <= kHeatMidpoint) {
     const float k = heat / kHeatMidpoint;
     *r = mixf(baseR, kOrangeR, k);
     *g = mixf(baseG, kOrangeG, k);
@@ -163,12 +171,15 @@ void BreathLut::build(const BreathField& field, const BreathPalette& palette) {
   float haloG = palette.haloG;
   float haloB = palette.haloB - 12.0f * warm;
 
-  // The ember visibly heating toward orange, then red, as activation climbs
-  // toward its threshold — meant to be seen, unlike warmth above. The halo
-  // follows most of the way too, so the whole glow reads as heating up, not
-  // just a small core dot changing hue.
-  const float heat = clamp01(field.heat);
-  if (heat > 0.0f) {
+  // The ember visibly cooling toward calm at rest, then heating through
+  // orange toward red as activation climbs toward its threshold — meant to
+  // be seen, unlike warmth above. The halo follows most of the way too, so
+  // the whole glow reads as changing temperature, not just a small core dot
+  // changing hue.
+  float heat = field.heat;
+  if (heat < -1.0f) heat = -1.0f;
+  if (heat > 1.0f) heat = 1.0f;
+  if (heat != 0.0f) {
     heatShift(coreR, coreG, coreB, heat, &coreR, &coreG, &coreB);
     heatShift(haloR, haloG, haloB, heat * 0.75f, &haloR, &haloG, &haloB);
   }

@@ -287,22 +287,23 @@ int main() {
            "sleeping must stay neutral no matter the activation score");
   }
 
-  // Unlike warmth's subliminal nudge, heat is meant to be seen: the ember
-  // visibly climbs from neutral through orange toward red as activation
-  // approaches the threshold, and stays neutral asleep regardless of score.
+  // Unlike warmth's subliminal nudge, heat is meant to be seen: cool and
+  // calming at your seated baseline, climbing through neutral, orange and
+  // toward red as activation approaches the threshold, and staying neutral
+  // (not calm) asleep regardless of score — nobody's there to calm.
   {
     BreathScene hot(config);
     hot.begin(0);
-    for (uint32_t now = kStepMs; now <= 3000; now += kStepMs) {
+    for (uint32_t now = kStepMs; now <= 5000; now += kStepMs) {
       SceneInput input = at(now);
       input.activationScore = 0.0f;
       hot.update(input);
     }
     assert(hot.state() == SceneState::Resting);
-    assert(hot.output().field.heat < 0.02f &&
-           "heat should sit near neutral at baseline");
+    assert(hot.output().field.heat < -0.9f &&
+           "heat should read as calm at baseline");
 
-    for (uint32_t now = 3040; now <= 8000; now += kStepMs) {
+    for (uint32_t now = 5040; now <= 10000; now += kStepMs) {
       SceneInput input = at(now);
       input.activationScore = 1.0f;
       hot.update(input);
@@ -323,8 +324,80 @@ int main() {
       asleepHot.update(input);
     }
     assert(asleepHot.state() == SceneState::Sleeping);
-    assert(asleepHot.output().field.heat < 0.02f &&
-           "sleeping must stay neutral no matter the activation score");
+    assert(fabsf(asleepHot.output().field.heat) < 0.02f &&
+           "sleeping must stay neutral (not calm, not hot) no matter the "
+           "activation score");
+  }
+
+  // Rising activation should be unmistakable: the ember grows and brightens
+  // by a large margin at the threshold, and picks up a heartbeat that is
+  // absent at baseline even with a live reading to beat to.
+  {
+    // No live breath phase anywhere in this block: breath is then purely
+    // the idle wave, a deterministic function of absolute time alone, so
+    // two scenes sampled at the same instant get exactly the same
+    // modulation regardless of when either entered Resting — no need to
+    // out-argue the ±32%/±40% swing it puts on radius and level with peaks
+    // and troughs.
+    auto restInput = [](uint32_t now, float activationScore) {
+      SceneInput input;
+      input.nowMs = now;
+      input.presence = true;
+      input.livePhaseValid = false;
+      input.activationScore = activationScore;
+      input.displayHeartRate = 68.0f;
+      return input;
+    };
+
+    SceneConfig baseline;
+    BreathScene calm(baseline);
+    calm.begin(0);
+    for (uint32_t now = kStepMs; now <= 6000; now += kStepMs)
+      calm.update(restInput(now, 0.0f));
+    assert(calm.state() == SceneState::Resting);
+
+    BreathScene stressed(baseline);
+    stressed.begin(0);
+    for (uint32_t now = kStepMs; now <= 3000; now += kStepMs)
+      stressed.update(restInput(now, 0.0f));
+    for (uint32_t now = 3040; now <= 8000; now += kStepMs)
+      stressed.update(restInput(now, 1.0f));
+    assert(stressed.state() == SceneState::Resting);
+
+    calm.update(restInput(8040, 0.0f));
+    stressed.update(restInput(8040, 1.0f));
+    assert(stressed.output().field.coreRadius > calm.output().field.coreRadius * 2.0f &&
+           "the ember should grow to fill a real share of the display near "
+           "the threshold");
+    assert(stressed.output().field.coreLevel > calm.output().field.coreLevel * 1.8f &&
+           "the ember should brighten well beyond the calm baseline");
+
+    bool sawPulseWhileCalm = false;
+    float previousCalmLevel = calm.output().field.coreLevel;
+    for (uint32_t now = 8080; now <= 11200; now += kStepMs) {
+      calm.update(restInput(now, 0.0f));
+      if (calm.output().field.coreLevel > previousCalmLevel * 1.05f) {
+        sawPulseWhileCalm = true;
+      }
+      previousCalmLevel = calm.output().field.coreLevel;
+    }
+    assert(!sawPulseWhileCalm &&
+           "there should be no heartbeat pulse at baseline activation");
+
+    // heartbeatPulse (SceneOutput) is only populated during CheckingIn;
+    // the resting pulse folds straight into coreLevel instead, so it's
+    // confirmed via the resulting oscillation.
+    bool sawPulseWhileStressed = false;
+    float previousStressedLevel = stressed.output().field.coreLevel;
+    for (uint32_t now = 8080; now <= 9200; now += kStepMs) {
+      stressed.update(restInput(now, 1.0f));
+      if (stressed.output().field.coreLevel > previousStressedLevel * 1.02f) {
+        sawPulseWhileStressed = true;
+      }
+      previousStressedLevel = stressed.output().field.coreLevel;
+    }
+    assert(sawPulseWhileStressed &&
+           "a heartbeat pulse should be visible once activation has risen");
   }
 
   // Whatever heat the ember was carrying releases outward into the noticing

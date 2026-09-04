@@ -54,8 +54,10 @@ struct SceneConfig {
 
   // Geometry, in pixels on a 466 x 466 display.
   float displayCenter = 233.0f;
-  float restCoreRadius = 38.0f;
-  float restCoreLevel = 0.16f;
+  // Bigger and brighter than a status dot at rest, on purpose: a calm object
+  // should still be easy to find at a glance.
+  float restCoreRadius = 50.0f;
+  float restCoreLevel = 0.22f;
   float sleepCoreRadius = 24.0f;
   float sleepCoreLevel = 0.028f;
   // A gentle warmth precursor to noticing while resting: 0 at your seated
@@ -64,11 +66,15 @@ struct SceneConfig {
   // baseline-relative score rather than raw heart rate, so it only moves
   // with a genuine sustained shift and can't flicker on ordinary noise.
   float restActivationWarmth = 0.30f;
-  // The same activation score also grows the ember itself — more obvious
-  // than warmth alone — until it's large and bright approaching the
-  // trigger threshold, right before a session actually begins.
-  float restActivationGrowth = 0.55f;   // extra radius, as a fraction
-  float restActivationBrighten = 0.70f;  // extra brightness, as a fraction
+  // The same activation score also grows the ember itself — dramatically —
+  // until it's large and bright enough to fill a real share of the display
+  // approaching the trigger threshold, so the climb reads as unmistakably
+  // rising rather than a status light nudging brighter.
+  float restActivationGrowth = 1.8f;    // extra radius, as a fraction
+  float restActivationBrighten = 1.3f;  // extra brightness, as a fraction
+  // How hard the ember beats with each heartbeat as activation climbs —
+  // absent at your seated baseline, most noticeable near the threshold.
+  float restHeartbeatPulse = 0.4f;
   // The ember's size while a glance at your numbers is up: bigger than rest
   // so the moment reads as "look here," calmer than a guided session.
   float checkInCoreRadius = 64.0f;

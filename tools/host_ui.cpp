@@ -120,7 +120,12 @@ int main(int argc, char** argv) {
   // Placed relative to the configured session so the sheet stays right
   // whatever AppConfig says about cycle count and pacing.
   const SceneConfig& cfg = ui.scene().config();
-  const uint32_t sessionAtMs = 6000;
+  // A slow, gradual climb rather than a quick ramp, so the sheet can show
+  // it actually building rather than jumping from calm to hot.
+  constexpr uint32_t kHeatRampStartMs = 2900;   // just after awakening settles
+  constexpr uint32_t kHeatRampDurationMs = 4000;
+  const uint32_t heatRampEndMs = kHeatRampStartMs + kHeatRampDurationMs;
+  const uint32_t sessionAtMs = heatRampEndMs + 1200;  // hold for full convergence
   const uint32_t guideAtMs = sessionAtMs + cfg.noticeMs + cfg.inviteMs;
   const uint32_t cycleMs = cfg.inhaleMs + cfg.exhaleMs;
   const uint32_t guideEndMs = guideAtMs + cycleMs * cfg.breathCycles;
@@ -133,8 +138,11 @@ int main(int argc, char** argv) {
   const std::vector<Moment> moments = {
       {400, "awakening-spark"},
       {1200, "awakening-wave"},
-      {4000, "resting"},
-      {sessionAtMs - 300, "resting-warm"},
+      {kHeatRampStartMs - 200, "resting"},
+      {kHeatRampStartMs + kHeatRampDurationMs / 4, "resting-rising-25"},
+      {kHeatRampStartMs + kHeatRampDurationMs / 2, "resting-rising-50"},
+      {kHeatRampStartMs + 3 * kHeatRampDurationMs / 4, "resting-rising-75"},
+      {sessionAtMs - 100, "resting-warm"},
       {sessionAtMs + 50, "noticing-hot"},
       {sessionAtMs + 700, "noticing-bloom"},
       {sessionAtMs + 2200, "noticing-words"},
@@ -194,13 +202,14 @@ int main(int argc, char** argv) {
       ui.handleTap(hostNowMs);
     }
     ui.setPresence(true);
-    // Stays at baseline through the "resting" sample, then a sustained shift
-    // builds toward the session, so "resting-warm" shows the ember's
-    // continuity precursor rather than a mid-ramp value at both samples.
-    // Reaches full activation with enough hold time before sessionAtMs for
-    // the smoothed heat to actually converge, rather than catching it
-    // mid-chase right as the session starts.
-    float activation = (static_cast<float>(hostNowMs) - 4400.0f) / 600.0f;
+    // Stays at baseline through the "resting" sample, then a slow, gradual
+    // climb through the rising-25/50/75 samples so the sheet can show it
+    // actually building, with enough hold time before sessionAtMs for the
+    // smoothed heat to fully converge rather than catching it mid-chase
+    // right as the session starts.
+    float activation = (static_cast<float>(hostNowMs) -
+                        static_cast<float>(kHeatRampStartMs)) /
+                       static_cast<float>(kHeatRampDurationMs);
     if (activation < 0.0f) activation = 0.0f;
     if (activation > 1.0f) activation = 1.0f;
     ui.setActivation(hostNowMs < sessionAtMs ? activation : 0.0f);

@@ -175,24 +175,32 @@ recognises, and is ignored rather than guessed at.
 
 ### Presence, without saying so
 
-While resting, if the radar is delivering a respiratory-phase signal, the
-ember's size and brightness follow *your* breath, clearly enough to catch at a
-glance rather than needing to be sought out. No words, no numbers, no
-indication that anything is being measured — it is the difference between an
-object that is on and an object that is present.
+At your seated baseline the ember is a deliberately cool, calming colour —
+easy to find at a glance rather than a status dot you have to hunt for — and
+its size and brightness follow *your* breath if the radar is delivering a
+respiratory-phase signal, clearly enough to catch at a glance. No words, no
+numbers, no indication that anything is being measured — it is the
+difference between an object that is on and an object that is present.
 
-The ember also carries one more signal, just as wordlessly: it visibly grows,
-brightens, and climbs through orange toward red as the detector's own
-smoothed, baseline-relative activation score rises — 0 at your seated
-baseline, 1 at the same threshold that would eventually start a session, so
-the approach is unmistakable well before a session actually begins. This is
-the one deliberate exception to "no alarm colour" in the whole interface, and
-it earns the exception the same way the numeric check-in does: it is tied to
-the detector's slow, baseline-relative score, never raw heart rate, so it
-cannot flicker red on an ordinary momentary blip — by the time it reads as
-hot, something has genuinely been sustained. There's still no flashing, no
-red text, no "stress detected" — just a colour the ember itself is allowed to
-carry, the way a real ember does.
+As the detector's own smoothed, baseline-relative activation score rises —
+0 at baseline, 1 at the threshold that would eventually start a session —
+the ember does three things at once, all tied to that same slow score and
+none to raw heart rate, so none of it can flicker on an ordinary momentary
+blip: it grows large enough to fill a real share of the display, it
+brightens well past its resting level, and its colour climbs from that calm
+baseline through neutral, orange and toward red. Once activation is high
+enough to matter, it also picks up a heartbeat — a brightening pulse timed
+to each beat, absent at baseline, more noticeable the higher activation
+climbs. The whole climb reads as gradual and continuous, the same eased
+chase as everything else in the interface, so by the time it's unmistakably
+hot the change has been building the whole time, not sprung on you.
+
+The colour is the one deliberate exception to "no alarm colour" in the whole
+interface, and it earns the exception the same way the numeric check-in
+earns its exception to "no numbers": by only ever reporting something
+genuinely sustained. There's still no flashing, no red text, no "stress
+detected" — just a colour, a size and a heartbeat the ember itself is
+allowed to carry, the way a real ember does.
 
 That colour doesn't just vanish the instant a session begins. Whatever heat
 the ember was carrying releases outward into NOTICING's own bloom — the

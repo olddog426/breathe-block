@@ -101,9 +101,16 @@ for (let y = 0; y < SIZE; y++) {
 // third of the way there, red by the threshold itself. Two segments rather
 // than one straight mix, weighted so red has the larger share of the climb —
 // this is meant to read as a real, rising sense of it, not a gentle tint.
+// Three anchors along heat's -1..1 range: a deliberately cool, calming
+// colour at rest, the palette's own plain colour at neutral (0), then
+// orange a little over a third of the way to +1, red at the threshold.
 const HEAT_MIDPOINT = 0.35;
-const ORANGE = [255, 120, 40], RED = [236, 40, 32];
+const CALM = [120, 200, 205], ORANGE = [255, 120, 40], RED = [236, 40, 32];
 function heatShift([r, g, b], heat) {
+  if (heat <= 0) {
+    const k = heat + 1;  // 0 at heat=-1 (calm), 1 at heat=0 (base)
+    return [mix(CALM[0], r, k), mix(CALM[1], g, k), mix(CALM[2], b, k)];
+  }
   if (heat <= HEAT_MIDPOINT) {
     const k = heat / HEAT_MIDPOINT;
     return [mix(r, ORANGE[0], k), mix(g, ORANGE[1], k), mix(b, ORANGE[2], k)];
@@ -118,12 +125,13 @@ function buildLut(field, palette) {
   const c = palette.core, h = palette.halo;
   let [cr, cg, cb] = [c[0] + 8 * warm, c[1], c[2] - 10 * warm];
   let [hr, hg, hb] = [h[0] + 12 * warm, h[1], h[2] - 12 * warm];
-  // The ember visibly heating toward orange, then red, as activation climbs
-  // toward its threshold — meant to be seen, unlike warmth above. The halo
-  // follows most of the way too, so the whole glow reads as heating up, not
-  // just a small core dot changing hue.
-  const heat = clamp01(field.heat);
-  if (heat > 0) {
+  // The ember visibly cooling toward calm at rest, then heating through
+  // orange toward red as activation climbs toward its threshold — meant to
+  // be seen, unlike warmth above. The halo follows most of the way too, so
+  // the whole glow reads as changing temperature, not just a small core dot
+  // changing hue.
+  const heat = Math.max(-1, Math.min(1, field.heat));
+  if (heat !== 0) {
     [cr, cg, cb] = heatShift([cr, cg, cb], heat);
     [hr, hg, hb] = heatShift([hr, hg, hb], heat * 0.75);
   }
@@ -144,10 +152,11 @@ const CFG = {
   awakenMs: 2600, noticeMs: 5200, inviteMs: 3400, inviteTimeoutMs: 24000,
   releaseMs: 4600, dismissMs: 2000, sleepAfterMs: 180000,
   checkInMs: 6000, countdownStepMs: 1000,
-  restCoreRadius: 38, restCoreLevel: 0.16,
+  restCoreRadius: 50, restCoreLevel: 0.22,
   sleepCoreRadius: 24, sleepCoreLevel: 0.028,
   restActivationWarmth: 0.30,
-  restActivationGrowth: 0.55, restActivationBrighten: 0.70,
+  restActivationGrowth: 1.8, restActivationBrighten: 1.3,
+  restHeartbeatPulse: 0.4,
   checkInCoreRadius: 64, checkInCoreLevel: 0.30,
   ringMinRadius: 100, ringMaxRadius: 184,
   ringOuterWidth: 20, ringOuterWidthFull: 28,
@@ -184,6 +193,16 @@ function wordEnvelope(t, from, to) {
   if (t <= from || t >= to) return 0;
   return Math.min(smoothstep(clamp01((t - from) / WORD_FADE)),
                   smoothstep(clamp01((to - t) / WORD_FADE)));
+}
+// Maps activation (0 at baseline, 1 at the trigger threshold) onto heat's
+// -1..1 temperature: calm at baseline, crossing neutral fairly early so
+// most of the range is spent climbing toward hot.
+const CALM_CLEAR_ACTIVATION = 0.30;
+function heatFromActivation(activation) {
+  if (activation <= CALM_CLEAR_ACTIVATION) {
+    return -1 + activation / CALM_CLEAR_ACTIVATION;
+  }
+  return (activation - CALM_CLEAR_ACTIVATION) / (1 - CALM_CLEAR_ACTIVATION);
 }
 
 function newField() {
@@ -327,12 +346,24 @@ function buildTarget(now) {
       const levelDepth = asleep ? 0.20 : 0.40;
       target.coreRadius = radius * (1 + radiusDepth * breath);
       target.coreLevel = level * (1 + levelDepth * breath);
+
+      // A heartbeat, not a metronome: absent at baseline, and only as
+      // noticeable as activation itself is. This standalone demo has no
+      // live heart rate to drive it, so it beats to the same illustrative
+      // reading the check-in glance uses.
+      if (!asleep && activation > 0) {
+        const periodMs = 60000 / DEMO_HEART_RATE;
+        const phase = (t % periodMs) / periodMs;
+        const heartbeat = phase < 0.08 ? smoothstep(phase / 0.08) : Math.exp(-5 * (phase - 0.08));
+        target.coreLevel *= 1 + activation * CFG.restHeartbeatPulse * heartbeat;
+      }
+
       // A gentle warmth precursor to noticing — continuity, not an alert.
       target.warmth = asleep ? 0 : CFG.restActivationWarmth * activation;
-      // Unlike warmth above, heat is meant to be seen: the ember's own
-      // colour visibly climbing through orange toward red as activation
-      // approaches the threshold that would start a session.
-      target.heat = asleep ? 0 : activation;
+      // Unlike warmth above, heat is meant to be seen: cool and calming at
+      // your seated baseline, climbing through orange toward red as
+      // activation approaches the threshold that would start a session.
+      target.heat = asleep ? 0 : heatFromActivation(activation);
       break;
     }
     case 'checking-in': {

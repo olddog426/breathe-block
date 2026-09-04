@@ -56,11 +56,15 @@ struct BreathField {
   // -1 cools the palette, +1 warms it. Used to shade inhale against exhale.
   float warmth = 0.0f;
 
-  // 0..1: how close the detector's activation score is to its trigger
-  // threshold while resting. Unlike warmth's subliminal breathing shade,
-  // this is meant to be seen — the ember's own colour visibly climbing
-  // through orange toward red as it approaches the point a session would
-  // begin. Zero outside Resting/Sleeping.
+  // -1..1: a temperature, not a fraction. -1 is the ember's own resting
+  // colour, a deliberately cool and calming one; 0 is the palette's plain
+  // colour, untouched (the default everywhere outside Resting); +1 is the
+  // detector's activation score at its trigger threshold. Unlike warmth's
+  // subliminal breathing shade, this is meant to be seen — the ember
+  // visibly cooling toward calm at your seated baseline and climbing
+  // through orange toward red as activation approaches the point a session
+  // would begin. Zero (not -1) outside Resting/Sleeping — Noticing carries
+  // a fading positive snapshot outward instead, never the calm colour.
   float heat = 0.0f;
 
   // Intensity of the field at a distance r from the centre, before colour.

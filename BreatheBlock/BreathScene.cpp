@@ -43,6 +43,18 @@ float clamp01(float value) {
   return value;
 }
 
+// Maps activation (0 at baseline, 1 at the trigger threshold) onto heat's
+// -1..1 temperature: calm at baseline, crossing neutral fairly early so most
+// of the range is spent climbing toward hot, which is what makes the climb
+// read as genuinely rising rather than a long, uneventful warm-up.
+constexpr float kCalmClearActivation = 0.30f;
+float heatFromActivation(float activation) {
+  if (activation <= kCalmClearActivation) {
+    return -1.0f + activation / kCalmClearActivation;
+  }
+  return (activation - kCalmClearActivation) / (1.0f - kCalmClearActivation);
+}
+
 float smoothstep(float t) { return t * t * (3.0f - 2.0f * t); }
 
 // Opacity envelope: up over kWordFadeMs from `from`, down to zero at `to`.
@@ -336,14 +348,26 @@ void BreathScene::buildTarget(const SceneInput& input, BreathField* target) {
       target->coreRadius = baseRadius * (1.0f + radiusDepth * breath);
       target->coreLevel = baseLevel * (1.0f + levelDepth * breath);
 
+      // A heartbeat, not a metronome: absent at baseline, and only as
+      // noticeable as activation itself is — a sharp attack and a decay,
+      // once per beat, the same rhythm the check-in glance uses.
+      if (!asleep && activation > 0.0f && input.displayHeartRate > 20.0f &&
+          input.displayHeartRate < 220.0f) {
+        const float periodMs = 60000.0f / input.displayHeartRate;
+        const float phase = fmodf(t, periodMs) / periodMs;
+        const float beat = phase < 0.08f ? smoothstep(phase / 0.08f)
+                                         : expf(-5.0f * (phase - 0.08f));
+        target->coreLevel *= 1.0f + activation * c.restHeartbeatPulse * beat;
+      }
+
       // A gentle warmth precursor to noticing. Continuity, not an alert: by
       // the time a session actually starts, the ember has already been
       // quietly responding.
       target->warmth = c.restActivationWarmth * activation;
-      // Unlike warmth above, heat is meant to be seen: the ember's own
-      // colour visibly climbing through orange toward red as activation
-      // approaches the threshold that would start a session.
-      target->heat = activation;
+      // Unlike warmth above, heat is meant to be seen: cool and calming at
+      // your seated baseline, climbing through orange toward red as
+      // activation approaches the threshold that would start a session.
+      target->heat = asleep ? 0.0f : heatFromActivation(activation);
       break;
     }
 
