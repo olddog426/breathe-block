@@ -1,0 +1,61 @@
+// Objective-C++ wrapper around the firmware's own BreathScene/BreathField —
+// the exact same C++ source the device and the browser preview use, not a
+// second hand-drawn port. If this ever disagrees with the device, the
+// device is right; but there should be nothing here TO disagree, since it's
+// the same two .cpp files, referenced (not copied) from ../../../../BreatheBlock.
+//
+// Swift never sees BreathScene/BreathField directly — only this Obj-C
+// surface, which is deliberately small: start/dismiss a session, and render
+// the current frame into a pixel buffer once per display tick.
+#import <Foundation/Foundation.h>
+
+NS_ASSUME_NONNULL_BEGIN
+
+typedef NS_ENUM(NSInteger, BreathPaletteChoice) {
+  BreathPaletteIvory = 0,
+  BreathPaletteMoonlight = 1,
+  BreathPaletteEmber = 2,
+};
+
+@interface BreathEngine : NSObject
+
+// Every method below has an explicit NS_SWIFT_NAME: Objective-C's automatic
+// Swift-import renaming is a real "won't know until Xcode parses it" risk
+// (e.g. whether a NowMs: label gets collapsed), and nothing here can be
+// compile-checked outside Xcode — see ios/SETUP.md — so the Swift signature
+// is pinned explicitly rather than left to inference.
+
+// nowMs should be a monotonic millisecond clock — CACurrentMediaTime() * 1000
+// cast to uint32_t works, same convention the firmware's millis() follows.
+// Call this once per display frame; the scene is lazily started on the
+// first call, exactly as it is on the device.
+- (void)updateWithNowMs:(uint32_t)nowMs
+                presence:(BOOL)presence NS_SWIFT_NAME(update(nowMs:presence:));
+
+// A session you started yourself: the app never claims to have noticed
+// anything, since there's no sensor behind it yet (see DESIGN.md).
+- (void)startSessionWithNowMs:(uint32_t)nowMs NS_SWIFT_NAME(startSession(nowMs:));
+- (void)dismissWithNowMs:(uint32_t)nowMs NS_SWIFT_NAME(dismiss(nowMs:));
+
+@property(nonatomic, readonly) BOOL sessionActive;
+// True for exactly one updateWithNowMs: call, the frame a guided session
+// finishes on its own (not dismissed) — the natural moment to log it.
+- (BOOL)consumeSessionFinished NS_SWIFT_NAME(consumeSessionFinished());
+@property(nonatomic, readonly, copy) NSString *stateName;
+// 0..1 while guiding, for a progress readout if the app ever wants one.
+@property(nonatomic, readonly) float progress;
+
+// Renders the current frame's light field into an RGBA8888 buffer,
+// width * height * 4 bytes, row-major, top-left origin, fully opaque.
+// Matches the same field math the device and browser preview render —
+// see BreathField.h. The buffer is cleared to black first; this is a full
+// frame, not something to composite onto existing content.
+- (void)renderRGBAInto:(uint8_t *)buffer
+                  width:(NSInteger)width
+                 height:(NSInteger)height
+                palette:(BreathPaletteChoice)palette
+    NS_SWIFT_NAME(renderRGBA(into:width:height:palette:));
+
+@end
+
+NS_ASSUME_NONNULL_END
