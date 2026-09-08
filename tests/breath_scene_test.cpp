@@ -330,8 +330,8 @@ int main() {
   }
 
   // Rising activation should be unmistakable: the ember grows and brightens
-  // by a large margin at the threshold, and picks up a heartbeat that is
-  // absent at baseline even with a live reading to beat to.
+  // by a large margin at the threshold, and its heartbeat — present even
+  // at baseline — grows far more pronounced as activation climbs.
   {
     // No live breath phase anywhere in this block: breath is then purely
     // the idle wave, a deterministic function of absolute time alone, so
@@ -373,31 +373,37 @@ int main() {
            "the ember should brighten well beyond the calm baseline");
 
     bool sawPulseWhileCalm = false;
+    float peakCalmRatio = 1.0f;
     float previousCalmLevel = calm.output().field.coreLevel;
     for (uint32_t now = 8080; now <= 11200; now += kStepMs) {
       calm.update(restInput(now, 0.0f));
-      if (calm.output().field.coreLevel > previousCalmLevel * 1.05f) {
-        sawPulseWhileCalm = true;
-      }
+      const float ratio = calm.output().field.coreLevel / previousCalmLevel;
+      if (ratio > peakCalmRatio) peakCalmRatio = ratio;
+      if (ratio > 1.02f) sawPulseWhileCalm = true;
       previousCalmLevel = calm.output().field.coreLevel;
     }
-    assert(!sawPulseWhileCalm &&
-           "there should be no heartbeat pulse at baseline activation");
+    assert(sawPulseWhileCalm &&
+           "the heartbeat should still be faintly visible at baseline "
+           "activation, not just once stress rises");
 
     // heartbeatPulse (SceneOutput) is only populated during CheckingIn;
     // the resting pulse folds straight into coreLevel instead, so it's
     // confirmed via the resulting oscillation.
     bool sawPulseWhileStressed = false;
+    float peakStressedRatio = 1.0f;
     float previousStressedLevel = stressed.output().field.coreLevel;
     for (uint32_t now = 8080; now <= 9200; now += kStepMs) {
       stressed.update(restInput(now, 1.0f));
-      if (stressed.output().field.coreLevel > previousStressedLevel * 1.02f) {
-        sawPulseWhileStressed = true;
-      }
+      const float ratio = stressed.output().field.coreLevel / previousStressedLevel;
+      if (ratio > peakStressedRatio) peakStressedRatio = ratio;
+      if (ratio > 1.02f) sawPulseWhileStressed = true;
       previousStressedLevel = stressed.output().field.coreLevel;
     }
     assert(sawPulseWhileStressed &&
            "a heartbeat pulse should be visible once activation has risen");
+    assert((peakStressedRatio - 1.0f) > (peakCalmRatio - 1.0f) * 2.5f &&
+           "the heartbeat should grow far more pronounced as activation "
+           "climbs, not just stay at its baseline strength");
   }
 
   // Whatever heat the ember was carrying releases outward into the noticing

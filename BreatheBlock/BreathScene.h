@@ -56,7 +56,7 @@ struct SceneConfig {
   float displayCenter = 233.0f;
   // Bigger and brighter than a status dot at rest, on purpose: a calm object
   // should still be easy to find at a glance.
-  float restCoreRadius = 50.0f;
+  float restCoreRadius = 64.0f;
   float restCoreLevel = 0.22f;
   float sleepCoreRadius = 24.0f;
   float sleepCoreLevel = 0.028f;
@@ -72,9 +72,18 @@ struct SceneConfig {
   // rising rather than a status light nudging brighter.
   float restActivationGrowth = 1.8f;    // extra radius, as a fraction
   float restActivationBrighten = 1.3f;  // extra brightness, as a fraction
-  // How hard the ember beats with each heartbeat as activation climbs —
-  // absent at your seated baseline, most noticeable near the threshold.
+  // How hard the ember beats with each heartbeat — present even at your
+  // seated baseline (restHeartbeatBaseline sets how much), and growing to
+  // full strength as activation climbs toward the threshold.
   float restHeartbeatPulse = 0.4f;
+  // The heartbeat's strength at activation 0, as a fraction of its full
+  // (activation 1) strength — never fully absent, so the ember always reads
+  // as something alive, not just once stress rises.
+  float restHeartbeatBaseline = 0.25f;
+  // Beaten to whenever there's no plausible live reading to beat to yet —
+  // no radar wired up, or (as in the iOS companion app) no live source at
+  // all. A plausible resting rate, not a claim about your actual pulse.
+  float restHeartbeatFallbackBpm = 68.0f;
   // The ember's size while a glance at your numbers is up: bigger than rest
   // so the moment reads as "look here," calmer than a guided session.
   float checkInCoreRadius = 64.0f;
