@@ -341,10 +341,11 @@ void BreathScene::buildTarget(const SceneInput& input, BreathField* target) {
       const float breath =
           mix(idle, input.liveBreath, asleep ? 0.0f : liveWeight_);
 
-      // Awake, the pulse is meant to be caught at a glance; asleep it stays
-      // closer to imperceptible, since nobody's there to breathe with.
-      const float radiusDepth = asleep ? 0.16f : 0.32f;
-      const float levelDepth = asleep ? 0.20f : 0.40f;
+      // Awake, the pulse is meant to be caught at a glance — a real in-and-
+      // out, not a subtle shimmer; asleep it stays closer to imperceptible,
+      // since nobody's there to breathe with.
+      const float radiusDepth = asleep ? 0.16f : 0.48f;
+      const float levelDepth = asleep ? 0.20f : 0.58f;
       target->coreRadius = baseRadius * (1.0f + radiusDepth * breath);
       target->coreLevel = baseLevel * (1.0f + levelDepth * breath);
 

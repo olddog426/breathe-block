@@ -152,7 +152,7 @@ const CFG = {
   awakenMs: 2600, noticeMs: 5200, inviteMs: 3400, inviteTimeoutMs: 24000,
   releaseMs: 4600, dismissMs: 2000, sleepAfterMs: 180000,
   checkInMs: 6000, countdownStepMs: 1000,
-  restCoreRadius: 50, restCoreLevel: 0.22,
+  restCoreRadius: 64, restCoreLevel: 0.32,
   sleepCoreRadius: 24, sleepCoreLevel: 0.028,
   restActivationWarmth: 0.30,
   restActivationGrowth: 1.8, restActivationBrighten: 1.3,
@@ -342,8 +342,8 @@ function buildTarget(now) {
                    (1 + CFG.restActivationBrighten * activation);
       // Awake, the pulse is meant to be caught at a glance; asleep it stays
       // closer to imperceptible, since nobody's there to breathe with.
-      const radiusDepth = asleep ? 0.16 : 0.32;
-      const levelDepth = asleep ? 0.20 : 0.40;
+      const radiusDepth = asleep ? 0.16 : 0.48;
+      const levelDepth = asleep ? 0.20 : 0.58;
       target.coreRadius = radius * (1 + radiusDepth * breath);
       target.coreLevel = level * (1 + levelDepth * breath);
 

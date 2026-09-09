@@ -56,8 +56,8 @@ struct SceneConfig {
   float displayCenter = 233.0f;
   // Bigger and brighter than a status dot at rest, on purpose: a calm object
   // should still be easy to find at a glance.
-  float restCoreRadius = 50.0f;
-  float restCoreLevel = 0.22f;
+  float restCoreRadius = 64.0f;
+  float restCoreLevel = 0.32f;
   float sleepCoreRadius = 24.0f;
   float sleepCoreLevel = 0.028f;
   // A gentle warmth precursor to noticing while resting: 0 at your seated
