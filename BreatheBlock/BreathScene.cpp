@@ -273,33 +273,6 @@ void BreathScene::update(const SceneInput& input) {
   buildTarget(input, &target);
   approach(&output_.field, target, dtMs);
 
-  // A heartbeat, not a metronome: a sharp attack and a decay, once per
-  // beat, the same rhythm the check-in glance uses — present even at
-  // baseline, and growing to full strength as activation climbs. Applied
-  // straight to the already-smoothed level rather than folded into target
-  // above, since kLevelTauMs is tuned for scene transitions settling in,
-  // not a fast beat-to-beat rhythm — smoothing the beat itself flattened a
-  // sharp ~70ms attack into something barely perceptible. Beats to the
-  // running average update() tracks every frame regardless of state
-  // (lastDisplayHeartRate_), falling back to a plausible illustrative rate
-  // when nothing valid has been reported yet — no radar wired up, or, as
-  // in the iOS companion app, no live source at all.
-  if (state_ == SceneState::Resting) {
-    const float activation = clamp01(input.activationScore);
-    const bool haveReading =
-        lastDisplayHeartRate_ > 20.0f && lastDisplayHeartRate_ < 220.0f;
-    const float heartRate =
-        haveReading ? lastDisplayHeartRate_ : config_.restHeartbeatFallbackBpm;
-    const float periodMs = 60000.0f / heartRate;
-    const float phase = fmodf(static_cast<float>(elapsed(input.nowMs)), periodMs) / periodMs;
-    const float beat = phase < 0.08f ? smoothstep(phase / 0.08f)
-                                     : expf(-5.0f * (phase - 0.08f));
-    const float pulseStrength =
-        mix(config_.restHeartbeatBaseline, 1.0f, activation);
-    output_.field.coreLevel *=
-        1.0f + pulseStrength * config_.restHeartbeatPulse * beat;
-  }
-
   const float progressK = dtMs / (kLevelTauMs + dtMs);
   chase(&progressOpacity_, output_.progressOpacity, progressK);
   output_.progressOpacity = progressOpacity_;
@@ -375,11 +348,17 @@ void BreathScene::buildTarget(const SceneInput& input, BreathField* target) {
       target->coreRadius = baseRadius * (1.0f + radiusDepth * breath);
       target->coreLevel = baseLevel * (1.0f + levelDepth * breath);
 
-      // The heartbeat itself isn't computed here — see update(), just after
-      // approach() — because it needs to ride on top of the already-
-      // smoothed level, not get folded into this target and re-smoothed by
-      // the slow scene-transition chase below, which would flatten a sharp
-      // per-beat pulse into almost nothing.
+      // A heartbeat, not a metronome: absent at baseline, and only as
+      // noticeable as activation itself is — a sharp attack and a decay,
+      // once per beat, the same rhythm the check-in glance uses.
+      if (!asleep && activation > 0.0f && input.displayHeartRate > 20.0f &&
+          input.displayHeartRate < 220.0f) {
+        const float periodMs = 60000.0f / input.displayHeartRate;
+        const float phase = fmodf(t, periodMs) / periodMs;
+        const float beat = phase < 0.08f ? smoothstep(phase / 0.08f)
+                                         : expf(-5.0f * (phase - 0.08f));
+        target->coreLevel *= 1.0f + activation * c.restHeartbeatPulse * beat;
+      }
 
       // A gentle warmth precursor to noticing. Continuity, not an alert: by
       // the time a session actually starts, the ember has already been

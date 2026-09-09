@@ -182,25 +182,18 @@ respiratory-phase signal, clearly enough to catch at a glance. No words, no
 numbers, no indication that anything is being measured — it is the
 difference between an object that is on and an object that is present.
 
-The ember also always carries a heartbeat — a brightening pulse timed to
-each beat, the same rhythm the numeric check-in's glance uses. Faint at
-your seated baseline (it should never read as a bare, dead light), it beats
-to whatever running average of your heart rate the detector currently has,
-falling back to a plausible resting rate on a device with no radar signal
-to read yet.
-
 As the detector's own smoothed, baseline-relative activation score rises —
 0 at baseline, 1 at the threshold that would eventually start a session —
 the ember does three things at once, all tied to that same slow score and
 none to raw heart rate, so none of it can flicker on an ordinary momentary
 blip: it grows large enough to fill a real share of the display, it
 brightens well past its resting level, and its colour climbs from that calm
-baseline through neutral, orange and toward red. Its heartbeat grows more
-pronounced right alongside them, from that faint baseline pulse to
-something unmistakable near the threshold. The whole climb reads as
-gradual and continuous, the same eased chase as everything else in the
-interface, so by the time it's unmistakably hot the change has been
-building the whole time, not sprung on you.
+baseline through neutral, orange and toward red. Once activation is high
+enough to matter, it also picks up a heartbeat — a brightening pulse timed
+to each beat, absent at baseline, more noticeable the higher activation
+climbs. The whole climb reads as gradual and continuous, the same eased
+chase as everything else in the interface, so by the time it's unmistakably
+hot the change has been building the whole time, not sprung on you.
 
 The colour is the one deliberate exception to "no alarm colour" in the whole
 interface, and it earns the exception the same way the numeric check-in
