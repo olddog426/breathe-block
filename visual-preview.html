@@ -152,11 +152,11 @@ const CFG = {
   awakenMs: 2600, noticeMs: 5200, inviteMs: 3400, inviteTimeoutMs: 24000,
   releaseMs: 4600, dismissMs: 2000, sleepAfterMs: 180000,
   checkInMs: 6000, countdownStepMs: 1000,
-  restCoreRadius: 64, restCoreLevel: 0.22,
+  restCoreRadius: 50, restCoreLevel: 0.22,
   sleepCoreRadius: 24, sleepCoreLevel: 0.028,
   restActivationWarmth: 0.30,
   restActivationGrowth: 1.8, restActivationBrighten: 1.3,
-  restHeartbeatPulse: 0.4, restHeartbeatBaseline: 0.25,
+  restHeartbeatPulse: 0.4,
   checkInCoreRadius: 64, checkInCoreLevel: 0.30,
   ringMinRadius: 100, ringMaxRadius: 184,
   ringOuterWidth: 20, ringOuterWidthFull: 28,
@@ -347,11 +347,16 @@ function buildTarget(now) {
       target.coreRadius = radius * (1 + radiusDepth * breath);
       target.coreLevel = level * (1 + levelDepth * breath);
 
-      // The heartbeat itself isn't applied here — see step(), just after
-      // approach() — because it needs to ride on top of the already-
-      // smoothed level, not get folded into this target and re-smoothed by
-      // the slow scene-transition chase, which flattens a sharp per-beat
-      // pulse into almost nothing.
+      // A heartbeat, not a metronome: absent at baseline, and only as
+      // noticeable as activation itself is. This standalone demo has no
+      // live heart rate to drive it, so it beats to the same illustrative
+      // reading the check-in glance uses.
+      if (!asleep && activation > 0) {
+        const periodMs = 60000 / DEMO_HEART_RATE;
+        const phase = (t % periodMs) / periodMs;
+        const heartbeat = phase < 0.08 ? smoothstep(phase / 0.08) : Math.exp(-5 * (phase - 0.08));
+        target.coreLevel *= 1 + activation * CFG.restHeartbeatPulse * heartbeat;
+      }
 
       // A gentle warmth precursor to noticing — continuity, not an alert.
       target.warmth = asleep ? 0 : CFG.restActivationWarmth * activation;
@@ -587,26 +592,6 @@ function step(now) {
       break;
   }
   approach(scene.field, buildTarget(now), dt);
-
-  // A heartbeat, not a metronome: a sharp attack and a decay, once per beat,
-  // the same rhythm the check-in glance uses — present even at baseline,
-  // and growing to full strength as activation climbs. Applied straight to
-  // the already-smoothed level (LEVEL_TAU is tuned for scene transitions
-  // settling in, not a fast beat-to-beat rhythm). This standalone demo has
-  // no live heart rate to drive it, so it always beats to the same
-  // illustrative reading the check-in glance uses.
-  if (scene.state === 'resting') {
-    // Recomputed fresh, not the outer t from the top of step(): a Releasing
-    // -> Resting transition earlier in this same call updates scene.stateAt,
-    // which would leave the outer t stale (still counting from Releasing).
-    const tInState = now - scene.stateAt;
-    const activation = clamp01(scene.activationScore);
-    const periodMs = 60000 / DEMO_HEART_RATE;
-    const phase = (tInState % periodMs) / periodMs;
-    const heartbeat = phase < 0.08 ? smoothstep(phase / 0.08) : Math.exp(-5 * (phase - 0.08));
-    const pulseStrength = mix(CFG.restHeartbeatBaseline, 1, activation);
-    scene.field.coreLevel *= 1 + pulseStrength * CFG.restHeartbeatPulse * heartbeat;
-  }
   scene.progressShown += (scene.progressOpacity - scene.progressShown) *
                          (dt / (LEVEL_TAU + dt));
 }
