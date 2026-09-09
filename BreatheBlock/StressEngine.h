@@ -19,6 +19,10 @@ struct StressEngineConfig {
   float heartRiseBpm = 12.0f;
   float breathRisePerMin = 4.0f;
   float activationThreshold = 1.0f;
+  // The activation score is computed from an averaged heart/breath rate, not
+  // the instant reading, so a single noisy radar packet can't swing it on
+  // its own — this is that average's time constant.
+  float activationSmoothingMs = 10000.0f;
 };
 
 struct BodyAssessment {
@@ -56,6 +60,10 @@ class StressEngine {
   uint16_t baselineSamples_ = 0;
   float baselineHeartRate_ = 0.0f;
   float baselineBreathRate_ = 0.0f;
+  bool smoothedReadingInitialised_ = false;
+  uint32_t lastSmoothedAtMs_ = 0;
+  float smoothedHeartRate_ = 0.0f;
+  float smoothedBreathRate_ = 0.0f;
   float distanceEma_ = 0.0f;
   bool activationTiming_ = false;
   bool cooldownActive_ = false;

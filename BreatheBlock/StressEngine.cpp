@@ -14,6 +14,10 @@ void StressEngine::reset() {
   baselineSamples_ = 0;
   baselineHeartRate_ = 0.0f;
   baselineBreathRate_ = 0.0f;
+  smoothedReadingInitialised_ = false;
+  lastSmoothedAtMs_ = 0;
+  smoothedHeartRate_ = 0.0f;
+  smoothedBreathRate_ = 0.0f;
   distanceEma_ = 0.0f;
   activationTiming_ = false;
   cooldownActive_ = false;
@@ -63,6 +67,22 @@ BodyAssessment StressEngine::update(const VitalSigns& signs, uint32_t nowMs) {
   if (signs.fresh && valid) {
     lastValidAtMs_ = nowMs;
 
+    if (!smoothedReadingInitialised_) {
+      smoothedReadingInitialised_ = true;
+      smoothedHeartRate_ = signs.heartRate;
+      smoothedBreathRate_ = signs.breathRate;
+      lastSmoothedAtMs_ = nowMs;
+    } else {
+      float dtMs =
+          static_cast<float>(static_cast<uint32_t>(nowMs - lastSmoothedAtMs_));
+      if (dtMs < 1.0f) dtMs = 1.0f;
+      if (dtMs > 2000.0f) dtMs = 2000.0f;
+      lastSmoothedAtMs_ = nowMs;
+      const float k = dtMs / (config_.activationSmoothingMs + dtMs);
+      smoothedHeartRate_ += (signs.heartRate - smoothedHeartRate_) * k;
+      smoothedBreathRate_ += (signs.breathRate - smoothedBreathRate_) * k;
+    }
+
     if (!calibrationStarted_) {
       calibrationStarted_ = true;
       calibrationStartedAtMs_ = nowMs;
@@ -107,9 +127,11 @@ BodyAssessment StressEngine::update(const VitalSigns& signs, uint32_t nowMs) {
   }
 
   const float heartLoad = clamp(
-      (signs.heartRate - baselineHeartRate_) / config_.heartRiseBpm, 0.0f, 2.0f);
+      (smoothedHeartRate_ - baselineHeartRate_) / config_.heartRiseBpm, 0.0f,
+      2.0f);
   const float breathLoad = clamp(
-      (signs.breathRate - baselineBreathRate_) / config_.breathRisePerMin, 0.0f, 2.0f);
+      (smoothedBreathRate_ - baselineBreathRate_) / config_.breathRisePerMin,
+      0.0f, 2.0f);
   result.activationScore = 0.65f * heartLoad + 0.35f * breathLoad;
 
   if (cooldownActive_) {
